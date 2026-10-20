@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="Banana TV layout illustration with four demo app tiles">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#102738"/><stop offset=".56" stop-color="#4c7278"/><stop offset="1" stop-color="#18252e"/></linearGradient>
+ <linearGradient id="shade" x2="0" y2="1"><stop stop-color="#07121c" stop-opacity=".15"/><stop offset="1" stop-color="#07121c" stop-opacity=".92"/></linearGradient>
+ <linearGradient id="glass" x2="0" y2="1"><stop stop-color="#c9dfdf" stop-opacity=".19"/><stop offset="1" stop-color="#c9dfdf" stop-opacity=".06"/></linearGradient>
+ <linearGradient id="blue"><stop stop-color="#3884d0"/><stop offset="1" stop-color="#205997"/></linearGradient>
+ <linearGradient id="pink"><stop stop-color="#e7a4b9"/><stop offset="1" stop-color="#bc758e"/></linearGradient>
+ <linearGradient id="green"><stop stop-color="#709b90"/><stop offset="1" stop-color="#3c7169"/></linearGradient>
+ <linearGradient id="red"><stop stop-color="#cb6c6c"/><stop offset="1" stop-color="#923b46"/></linearGradient>
+</defs>
+<rect width="1600" height="900" fill="url(#sky)"/>
+<path d="M0 480 180 327 277 392 480 196 695 446 876 276 1050 434 1260 191 1410 390 1600 267V900H0Z" fill="#7a9996" opacity=".48"/>
+<path d="M0 583 270 394 445 536 661 337 902 611 1191 413 1400 542 1600 434V900H0Z" fill="#2b4e55"/>
+<path d="M0 670 292 554 526 694 793 484 1100 698 1376 540 1600 640V900H0Z" fill="#18363f"/>
+<rect width="1600" height="900" fill="url(#shade)"/>
+<g fill="none" stroke="#fff" stroke-opacity=".16"><rect x="1158" y="42" width="330" height="61" rx="30" fill="url(#glass)"/></g>
+<g fill="none" stroke="#f4f8f8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+ <rect x="1187" y="62" width="29" height="19" rx="3"/><path d="m1196 87 5-6 5 6"/>
+ <path d="M1245 65q12-12 24 0m-20 6q8-8 16 0m-11 5q3-3 6 0"/><circle cx="1257" cy="82" r="1"/>
+ <circle cx="1449" cy="73" r="10"/><circle cx="1449" cy="73" r="3"/><path d="M1449 58v-4m0 38v-4m15-15h4m-38 0h4m26-11 3-3m-28 28 3-3m22 0 3 3m-28-28 3 3"/>
+</g>
+<text x="1341" y="82" fill="#f6f8f8" font-size="24" text-anchor="middle" font-family="Arial,sans-serif">20:26</text>
+<rect x="220" y="560" width="1160" height="230" rx="48" fill="url(#glass)" stroke="#d5eeee" stroke-opacity=".18"/>
+<g>
+ <rect x="260" y="602" width="240" height="136" rx="24" fill="url(#blue)"/>
+ <path d="m361 638 55 32-55 32z" fill="#fff" opacity=".94"/>
+ <rect x="529" y="588" width="266" height="164" rx="28" fill="url(#pink)" stroke="#fff" stroke-width="3" stroke-opacity=".87"/>
+ <rect x="621" y="630" width="81" height="58" rx="12" fill="none" stroke="#fff" stroke-width="5"/><path d="m640 615 13 15m30-15-13 15m-31 24v10m36-10v10" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+ <rect x="824" y="602" width="240" height="136" rx="24" fill="url(#green)"/>
+ <path d="m912 647 31-15 33 15v37l-33 17-31-17zM912 647l31 17 33-17m-33 17v37" fill="none" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
+ <rect x="1100" y="602" width="240" height="136" rx="24" fill="url(#red)"/>
+ <path d="M1213 685v-49l33-8v48" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><ellipse cx="1203" cy="687" rx="12" ry="9" fill="#fff"/><ellipse cx="1236" cy="678" rx="12" ry="9" fill="#fff"/>
+</g>
+
+</svg>

@@ -1,0 +1,50 @@
+[
+  {
+    "title": "春日 · 山谷",
+    "file": "app/src/main/res/drawable-nodpi/spring_valley_1.jpg",
+    "work": "Spring (2019)",
+    "credit": "(CC) Blender Foundation | cloud.blender.org/spring",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "rights_source": "https://studio.blender.org/projects/spring/pages/about/",
+    "source": "app/src/main/res/raw/mountain_loop.mp4",
+    "changes": "JPEG still extracted at 0.0s from the bundled 1280x536 edited excerpt.",
+    "sha256": "2a19e8afe3536e8485892bd4585531d48d753d5afedc22a4b6bc738d60f82877"
+  },
+  {
+    "title": "春日 · 云影",
+    "file": "app/src/main/res/drawable-nodpi/spring_valley_2.jpg",
+    "work": "Spring (2019)",
+    "credit": "(CC) Blender Foundation | cloud.blender.org/spring",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "rights_source": "https://studio.blender.org/projects/spring/pages/about/",
+    "source": "app/src/main/res/raw/mountain_loop.mp4",
+    "changes": "JPEG still extracted at 1.6s from the bundled 1280x536 edited excerpt.",
+    "sha256": "d02f9a205ca9f7b09f8c229887fce8b7ca85a6ac737cd4437185cf3fd6bd96af"
+  },
+  {
+    "title": "春日 · 远山",
+    "file": "app/src/main/res/drawable-nodpi/spring_valley_3.jpg",
+    "work": "Spring (2019)",
+    "credit": "(CC) Blender Foundation | cloud.blender.org/spring",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "rights_source": "https://studio.blender.org/projects/spring/pages/about/",
+    "source": "app/src/main/res/raw/mountain_loop.mp4",
+    "changes": "JPEG still extracted at 3.2s from the bundled 1280x536 edited excerpt.",
+    "sha256": "7bc73f05a345b2370edfdcb259881fe4392e24d32c407b5f77eb3839665b209b"
+  },
+  {
+    "title": "春日 · 薄雾",
+    "file": "app/src/main/res/drawable-nodpi/spring_valley_4.jpg",
+    "work": "Spring (2019)",
+    "credit": "(CC) Blender Foundation | cloud.blender.org/spring",
+    "license": "CC BY 4.0",
+    "license_url": "https://creativecommons.org/licenses/by/4.0/",
+    "rights_source": "https://studio.blender.org/projects/spring/pages/about/",
+    "source": "app/src/main/res/raw/mountain_loop.mp4",
+    "changes": "JPEG still extracted at 4.8s from the bundled 1280x536 edited excerpt.",
+    "sha256": "d78db945a7c7e680a4217a34bac67788bdae3e7573fd15faed9011a9989e2398"
+  }
+]

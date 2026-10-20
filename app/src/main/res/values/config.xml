@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="dock_apps">
+        <item>com.ktcp.video</item>
+        <item>com.xiaodianshi.tv.yst</item>
+        <item>com.github.tvbox.osc.tk</item>
+        <item>com.netease.cloudmusic.tv</item>
+    </string-array>
+    <string-array name="hidden_apps">
+        <item>com.omeda.arc</item>
+        <item>com.conreo.couchytv</item>
+    </string-array>
+    <string name="live_tv_package" translatable="false"></string>
+    <integer name="columns">4</integer>
+</resources>

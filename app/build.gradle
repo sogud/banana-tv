@@ -1,0 +1,52 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.sogud.bbtv'
+    compileSdk 34
+    testBuildType 'release'
+
+    defaultConfig {
+        applicationId 'com.sogud.bbtv'
+        minSdk 28
+        targetSdk 34
+        versionCode 12
+        versionName '0.1.11'
+        testInstrumentationRunner 'com.sogud.bbtv.WallpaperStartupProbe'
+    }
+
+    def signingVariables = ['BANANA_TV_KEYSTORE', 'BANANA_TV_STORE_PASSWORD',
+            'BANANA_TV_KEY_ALIAS', 'BANANA_TV_KEY_PASSWORD']
+    def signingValues = signingVariables.collect { System.getenv(it) }
+    def hasSigning = signingValues.every { it != null && !it.isEmpty() }
+    if (signingValues.any { it != null && !it.isEmpty() } && !hasSigning) {
+        throw new GradleException('Set all four BANANA_TV signing variables, or leave them all unset.')
+    }
+    signingConfigs {
+        if (hasSigning) {
+            distribution {
+                storeFile file(signingValues[0])
+                storePassword signingValues[1]
+                keyAlias signingValues[2]
+                keyPassword signingValues[3]
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (hasSigning) signingConfig signingConfigs.distribution
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+}
