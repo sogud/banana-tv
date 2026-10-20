@@ -1,0 +1,15 @@
+{
+  "title": "云海山谷",
+  "work": "Spring (2019)",
+  "credit": "(CC) Blender Foundation | cloud.blender.org/spring",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "rights_source": "https://studio.blender.org/projects/spring/pages/about/",
+  "media_source_page": "https://commons.wikimedia.org/wiki/File:Spring_-_Blender_Open_Movie.webm",
+  "download_source": "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a5/Spring_-_Blender_Open_Movie.webm/Spring_-_Blender_Open_Movie.webm.1080p.vp9.webm",
+  "changes": "Excerpt 00:22.6 to 00:29.0; removed audio; scaled to 1280x536; H.264 Main 30 fps; concatenated forward and reverse for a 12.8-second loop. Poster extracted from the excerpt.",
+  "video_file": "res/raw/mountain_loop.mp4",
+  "video_sha256": "9616fd89e52588ae05cfa1a462eab7b5c2926df4e1565479d859819c5f7a4aee",
+  "poster_file": "res/drawable-nodpi/mountain_poster.jpg",
+  "poster_sha256": "292bb4a2c73c27f941768f067e613e30326f1f2360ae8d5146f9b457e0edd0ff"
+}

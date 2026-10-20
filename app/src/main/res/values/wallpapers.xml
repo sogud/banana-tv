@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="wallpaper_images">
+        <item>@drawable/spring_valley_1</item>
+        <item>@drawable/spring_valley_2</item>
+        <item>@drawable/spring_valley_3</item>
+        <item>@drawable/spring_valley_4</item>
+        <item>@drawable/mountain_poster</item>
+        <item>@drawable/mountain_poster</item>
+        <item>@drawable/mountain_poster</item>
+        <item>@drawable/mountain_poster</item>
+        <item>@drawable/mountain_poster</item>
+        <item>@drawable/mountain_poster</item>
+    </array>
+    <string-array name="wallpaper_names">
+        <item>春日 · 山谷</item>
+        <item>春日 · 云影</item>
+        <item>春日 · 远山</item>
+        <item>春日 · 薄雾</item>
+        <item>云海山谷</item>
+        <item>流光</item>
+        <item>潮汐</item>
+        <item>玫瑰暮色</item>
+        <item>暖砂</item>
+        <item>夜紫</item>
+    </string-array>
+    <integer-array name="wallpaper_modes">
+        <item>0</item><item>0</item><item>0</item><item>0</item><item>1</item>
+        <item>2</item><item>3</item><item>4</item><item>5</item><item>6</item>
+    </integer-array>
+</resources>

@@ -1,0 +1,11 @@
+Bundled video wallpaper, poster and four stills are derived from Spring (2019).
+(CC) Blender Foundation | cloud.blender.org/spring
+License: Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+https://studio.blender.org/projects/spring/pages/about/
+
+The video excerpt is cropped in time, muted, resized, re-encoded and joined
+forward/reverse. Stills are extracted from the edited excerpt.
+See video-wallpaper-source.json and wallpaper-sources.json for provenance,
+modifications and hashes. These media are not covered by the application MIT license.
+The previous private illustration pack is not included in the public release.
