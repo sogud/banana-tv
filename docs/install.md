@@ -221,8 +221,10 @@ Choose **设置 → 壁纸 → 更新每日图片** to opt into Bing downloads. 
 
 ## Guard build
 
-Use the normal release first. Only when firmware rejects a package declaring `CATEGORY_HOME`, build `:app:assembleGuard` with the same four signing variables as a release. The output is `app/build/outputs/apk/guard/app-guard.apk`. Its main activity remains `com.sogud.bbtv/.MainActivity`, but it does not register as native Home. The owner must enable the reversible accessibility-based Home compatibility service. Updating a working native-Home installation to Guard can return Home to the stock launcher, so prepare ADB recovery first.
+Use the normal release first. Only when firmware rejects a package declaring `CATEGORY_HOME`, build `:app:assembleGuard` with the same four signing variables as a release. Without signing variables, the output is `app/build/outputs/apk/guard/app-guard-unsigned.apk`; a signed build produces `app-guard.apk`. Its main activity remains `com.sogud.bbtv/.MainActivity`, but it does not register as native Home. The owner must enable the reversible accessibility-based Home compatibility service. Updating a working native-Home installation to Guard can return Home to the stock launcher, so prepare ADB recovery first.
 
 To return to the standard build, install a standard APK signed by the same key and restore the system's default-Home selection. Keep the stock launcher installed. This variant is not a firmware replacement.
 
 For disposable emulator checks, add `-e feature_parity true` to the framework instrumentation command above. It tests settings migration, ordering, PIN, image validation and the phone session using generated fixtures and restores preferences. It refuses non-emulator hardware. Sign both APKs with the emulator's existing key; an unsigned instrumentation APK is not installable. Physical-TV tests remain separate.
+
+For the disposable emulator PIN race check, add `-e pin_race true` to the instrumentation command. It queues a correct PIN, returns Home before verification completes, and requires the protected action to stay closed. It also verifies that a current PIN request still succeeds and restores preferences.

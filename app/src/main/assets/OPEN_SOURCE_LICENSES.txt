@@ -175,3 +175,8 @@ Apache License 2.0: third-party/APACHE-2.0.txt; bundled notices in third-party/.
 
 NanoHTTPD 2.3.1 — https://github.com/NanoHttpd/nanohttpd
 BSD 3-Clause: third-party/nanohttpd-LICENSE.txt.
+
+AndroidX ExifInterface 1.4.2
+Copyright The Android Open Source Project
+License: Apache License 2.0 (third-party/APACHE-2.0.txt)
+https://developer.android.com/jetpack/androidx/releases/exifinterface

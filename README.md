@@ -15,7 +15,7 @@ Native Android. Open source. Built for the remote.
 <sub>Layout illustration with demo apps, not a TV screenshot. The current interface is Chinese.</sub>
 </div>
 
-## What you get
+## What you get in v0.1.11
 
 - **Your apps, up front.** Four editable shortcuts, plus an installed-app grid. Adjust the dock from 75% to 110% (default 90%). Tiles have no visible name captions; accessibility labels remain.
 - **A quiet home screen.** No sponsored rows, account login or recommendations to dismiss inside Banana TV.
@@ -92,7 +92,7 @@ Output: `app/build/outputs/apk/debug/app-debug.apk`. The package is `com.sogud.b
 
 Release builds are unsigned unless all four signing variables are set: `BANANA_TV_KEYSTORE` (an external file), `BANANA_TV_STORE_PASSWORD`, `BANANA_TV_KEY_ALIAS`, `BANANA_TV_KEY_PASSWORD`. Keep the key and passwords outside Git. Run `:app:assembleRelease :app:lintRelease` with those variables for a signed build.
 
-For firmware that refuses APKs declaring `CATEGORY_HOME`, `:app:assembleGuard` builds a package without that declaration. It uses the same package/data and signing requirements; enable Home compatibility explicitly. Use the standard build when native Home works. [Guard setup and recovery](docs/install.md#guard-build).
+For firmware that refuses APKs declaring `CATEGORY_HOME`, `:app:assembleGuard` builds a package without that declaration (unsigned output: `app/build/outputs/apk/guard/app-guard-unsigned.apk`). It uses the same package/data and signing requirements; enable Home compatibility explicitly. Use the standard build when native Home works. [Guard setup and recovery](docs/install.md#guard-build).
 
 Source pointers and device diagnostics: [AGENTS.md](AGENTS.md). Contribution checks: [CONTRIBUTING.md](CONTRIBUTING.md). Release changes: [CHANGELOG.md](CHANGELOG.md).
 

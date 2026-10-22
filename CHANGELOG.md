@@ -7,6 +7,8 @@
 - Add temporary QR phone configuration with local wallpaper upload, photo removal and icon/weather controls.
 - Add settings PIN, capability-aware audio/display controls, optional recovery and Guard packaging.
 - Add full-screen wallpaper viewing with a long Back press, preserving the wallpaper player and focus.
+- Correct camera-photo orientation, cancel stale PIN authorization on Home, restore click-to-exit for system screen savers and refresh daily pictures without leaving Home.
+- Keep direct backlight writes disabled until a device profile is verified; use native picture settings.
 - These features are a source preview. Physical-TV acceptance remains pending; the public v0.1.11 APK is unchanged.
 
 - Replace the solid status bar with adaptive weather/time text and an on-demand Control Center.

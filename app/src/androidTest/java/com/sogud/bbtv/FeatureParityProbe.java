@@ -28,6 +28,7 @@ final class FeatureParityProbe {
         MediaLibrary media = new MediaLibrary(context);
         File image = new File(context.getCacheDir(), "parity-fixture.png");
         File invalid = new File(context.getCacheDir(), "parity-invalid.txt");
+        File camera = new File(context.getCacheDir(), "parity-camera.jpg");
         File icon = media.customIcon(context.getPackageName());
         byte[] iconBefore = read(icon);
         List<String> created = new ArrayList<>();
@@ -51,15 +52,48 @@ final class FeatureParityProbe {
                 Bitmap gradient = GradientWallpapers.render(i, 96, 54);
                 require(gradient.getPixel(12, 12) != gradient.getPixel(80, 40), "Gradient variation"); gradient.recycle();
             } checks++;
-            ParentalLock.set(context, "4726"); require(!ParentalLock.locked(context), "PIN unlock");
+            ParentalLock.set(context, "4726"); require(ParentalLock.locked(context), "PIN creation stays locked");
+            ParentalLock.unlock(); require(!ParentalLock.locked(context), "PIN unlock");
             ParentalLock.relock(); require(ParentalLock.locked(context), "Home relock");
             require(!ParentalLock.verify(context, "0000") && ParentalLock.verify(context, "4726"), "PIN verification");
+            require(ParentalLock.locked(context), "Verification cannot unlock a canceled request");
             ParentalLock.disable(context); checks++;
             Bitmap fixture = Bitmap.createBitmap(80, 50, Bitmap.Config.ARGB_8888); fixture.eraseColor(0xFF507090);
             try (FileOutputStream output = new FileOutputStream(image)) { fixture.compress(Bitmap.CompressFormat.PNG, 100, output); }
             fixture.recycle();
             String photo = media.addPhoto(image); created.add(photo);
             require(media.select(photo) && media.picture(photo, 80, 50) != null, "Photo import and selection"); checks++;
+            Bitmap asymmetric = Bitmap.createBitmap(80, 50, Bitmap.Config.ARGB_8888);
+            asymmetric.eraseColor(android.graphics.Color.BLUE);
+            android.graphics.Canvas canvas = new android.graphics.Canvas(asymmetric);
+            android.graphics.Paint red = new android.graphics.Paint(); red.setColor(android.graphics.Color.RED);
+            canvas.drawRect(0, 0, 40, 50, red);
+            for (int orientation = 1; orientation <= 8; orientation++) {
+                try (FileOutputStream output = new FileOutputStream(camera)) {
+                    asymmetric.compress(Bitmap.CompressFormat.JPEG, 100, output);
+                }
+                androidx.exifinterface.media.ExifInterface exif = new androidx.exifinterface.media.ExifInterface(camera.getPath());
+                exif.setAttribute(androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION, String.valueOf(orientation));
+                exif.saveAttributes();
+                String oriented = media.addPhoto(camera); created.add(oriented);
+                Bitmap corrected = media.picture(oriented, 100, 100);
+                boolean swapped = orientation >= 5;
+                require(corrected.getWidth() == (swapped ? 50 : 80) && corrected.getHeight() == (swapped ? 80 : 50), "EXIF dimensions");
+                int topLeft = corrected.getPixel(10, 10);
+                boolean redAtTopLeft = orientation == 1 || orientation == 4 || orientation == 5 || orientation == 6;
+                require((android.graphics.Color.red(topLeft) > android.graphics.Color.blue(topLeft)) == redAtTopLeft, "EXIF rotation or reflection");
+                corrected.recycle(); media.delete(oriented); created.remove(oriented);
+            }
+            asymmetric.recycle(); checks++;
+            java.util.Calendar yesterday = java.util.Calendar.getInstance();
+            yesterday.set(2026, 0, 1, 23, 50, 0);
+            long checked = yesterday.getTimeInMillis();
+            java.util.Calendar midnight = (java.util.Calendar) yesterday.clone(); midnight.add(java.util.Calendar.MINUTE, 12);
+            long now = midnight.getTimeInMillis();
+            require(MediaLibrary.shouldRefreshDaily(now, checked, checked), "New-day daily refresh");
+            require(!MediaLibrary.shouldRefreshDaily(now, now - 60_000L, now - 60_000L), "Daily cache throttle");
+            require(!MediaLibrary.shouldRefreshDaily(now, 0, now - 60_000L), "Failed daily retry throttle");
+            require(MediaLibrary.shouldRefreshDaily(now, 0, now + 60_000L), "Daily clock rollback"); checks++;
             try (FileOutputStream output = new FileOutputStream(invalid)) { output.write("invalid image".getBytes(StandardCharsets.UTF_8)); }
             boolean rejected = false;
             try { media.addPhoto(invalid); } catch (IllegalArgumentException expected) { rejected = true; }
@@ -99,7 +133,7 @@ final class FeatureParityProbe {
         } finally {
             if (server != null) server.stop(); weather.close();
             for (String id : created) media.delete(id);
-            image.delete(); invalid.delete();
+            image.delete(); invalid.delete(); camera.delete();
             if (iconBefore == null) icon.delete();
             else try (FileOutputStream output = new FileOutputStream(icon)) { output.write(iconBefore); } catch (Exception ignored) { }
             restore(prefs, original); ParentalLock.relock();
@@ -129,7 +163,7 @@ final class FeatureParityProbe {
         }
     }
     @SuppressWarnings("unchecked")
-    private static void restore(SharedPreferences prefs, Map<String, ?> original) {
+    static void restore(SharedPreferences prefs, Map<String, ?> original) {
         SharedPreferences.Editor edit = prefs.edit().clear();
         for (Map.Entry<String, ?> entry : original.entrySet()) {
             String key = entry.getKey(); Object value = entry.getValue();

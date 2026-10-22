@@ -1,6 +1,6 @@
 # Roadmap
 
-Banana TV currently provides a Chinese Android TV home screen, app shortcuts, local video wallpaper and a screen saver. It runs on the existing firmware.
+Banana TV provides a Chinese Android TV home screen on the existing firmware. The 0.1.12-dev source adds app ordering/layout, personal and daily wallpapers, aerial/photo/clock screen savers, QR phone configuration and settings PIN. See [implemented features and verification](aerial-parity.md).
 
 ## Next
 

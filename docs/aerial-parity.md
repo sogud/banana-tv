@@ -25,7 +25,7 @@ This is a source comparison and implementation checklist. “Present” does not
 | CEC connection labels and boot input | Connection state present | CEC child labels and optional boot/wake source routing; physical acceptance pending. |
 | Control Center, network and TV settings | Present | Floating Control Center with inputs, audio/display, network, screen saver, phone setup and updates. |
 | Volume slider | Absent | AudioManager slider with hardware-volume synchronization; fixed outputs show guidance. |
-| Brightness slider or OEM picture-settings fallback | Absent | Standard manual-brightness capability/readback checks, with OEM picture-settings fallback. |
+| Brightness slider or OEM picture-settings fallback | Absent | OEM picture-settings route; direct backlight writes are deferred until a physical profile is verified. |
 | Back returns to first row, then optionally starts the screen saver | Different behavior | Back returns to the first row; a separate option starts the screen saver there. |
 | Aerial screen saver with timed captions and previous/next | Absent | 114-film HTTPS playlist, captions, previous/next, 48 MiB cache, bounded buffer, timeouts and local fallback. |
 | Photo screen saver with slow motion | Selected still present | Cached daily/personal images, minute rotation and optional slow zoom. |
@@ -82,10 +82,16 @@ Its feature set is not evidence that the existing physical-TV flicker is resolve
 ## Verification — 2026-10-22
 
 - Debug and Guard APKs build; lint reports zero errors and 33 warnings. The merged Guard activity has no Home registration. Both variants retain the package and signing requirements.
-- The updated emulator APK matches its previous certificate. The first application draw includes its wallpaper. Twenty-four disposable fixture checks pass for preference defaults/order, PIN, images, phone authentication, upload limits, setting allowlists and session expiry.
+- The updated emulator APK matches its previous certificate. The first application draw includes its wallpaper. Twenty-six disposable fixture groups pass for preference defaults/order, PIN, images, phone authentication, upload limits, setting allowlists and session expiry.
 - Native UI checks pass for five columns, non-overlapping clock, app-store discovery, remote/pointer reordering and restart persistence, capability-aware audio/display panels, phone multipart upload/thumbnail/delete, panel-close shutdown, PIN keypad and Home relocking after Activity recreation. System uninstall opens a confirmation and cancels correctly. The Dock picker reflects five actual positions; hide/restore also passes.
 - Photo and clock screen savers render and exit. Aerial films actually play over HTTPS with captions; next/exit work. A controlled GSM-speed emulator network triggers the local fallback and still permits exit; normal networking is restored afterward.
 - Bing downloads and caches eight dated pictures; the generated thumbnail is a valid JPEG. The opt-in setting and original Home preferences are restored after testing.
 - A debug emulator Dock sample on a static wallpaper, 11 app tiles and no concurrent build: 311 frames, 24 D-pad events, p50 18 ms, p95 20 ms, one Android-reported janky frame. This is a gfxinfo duration histogram, not average FPS, remote latency or a steady-60-fps guarantee.
 
 Boot/wake, the physical Home transition, CEC/input video and audio, actual backlight response, notification revival, vendor ADB persistence and Guard installation on restrictive firmware still require device acceptance. No physical-TV state was changed for this work. The public v0.1.11 download is unchanged.
+
+## Source-preview fixes
+
+Camera uploads apply EXIF rotation/reflection before metadata removal. PIN verification cannot unlock or reopen a panel after Home cancels its request. Interactive system screen savers dismiss on a click. Opt-in daily pictures refresh while Home remains open, with a new-day check and a five-minute failed-download retry interval. Direct backlight writes are deferred; the brightness entry opens the TV picture settings.
+
+Final checks also cover all eight EXIF orientations, daily refresh timing, queued PIN cancellation on Home, and browser file-picker uploads (JPG/PNG/WebP, invalid images, size limits, rendering and process-restart persistence). Wallpaper preview passes eleven interaction checks. System Dream click dismissal is source-reviewed only: this emulator requires root for its Dream shell command and its SystemUI preview did not start a Dream.

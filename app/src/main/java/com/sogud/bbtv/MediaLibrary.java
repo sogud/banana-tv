@@ -1,5 +1,7 @@
 package com.sogud.bbtv;
 
+import androidx.exifinterface.media.ExifInterface;
+
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -158,8 +160,10 @@ final class MediaLibrary {
         BitmapFactory.decodeFile(upload.getPath(), bounds);
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth > 16384 || bounds.outHeight > 16384
                 || (long) bounds.outWidth * bounds.outHeight > 40_000_000L) throw new IllegalArgumentException("Unsupported image");
-        Bitmap bitmap = decode(upload, width, height);
+        // Leave room for EXIF rotation to allocate a second bitmap on low-memory TVs.
+        Bitmap bitmap = decode(upload, Math.max(1, width / 2), Math.max(1, height / 2));
         if (bitmap == null) throw new IllegalArgumentException("Unsupported image");
+        bitmap = orient(upload, bitmap);
         float scale = Math.min(1f, Math.min((float) width / bitmap.getWidth(), (float) height / bitmap.getHeight()));
         if (scale < 1f) {
             Bitmap resized = Bitmap.createScaledBitmap(bitmap, Math.max(1, Math.round(bitmap.getWidth() * scale)),
@@ -184,6 +188,30 @@ final class MediaLibrary {
         }
     }
 
+    private static Bitmap orient(File file, Bitmap bitmap) {
+        int orientation;
+        try {
+            ExifInterface exif = new ExifInterface(file.getPath());
+            orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
+        } catch (java.io.IOException ignored) {
+            return bitmap;
+        }
+        android.graphics.Matrix matrix = new android.graphics.Matrix();
+        switch (orientation) {
+            case ExifInterface.ORIENTATION_FLIP_HORIZONTAL: matrix.setScale(-1, 1); break;
+            case ExifInterface.ORIENTATION_ROTATE_180: matrix.setRotate(180); break;
+            case ExifInterface.ORIENTATION_FLIP_VERTICAL: matrix.setScale(1, -1); break;
+            case ExifInterface.ORIENTATION_TRANSPOSE: matrix.setRotate(90); matrix.postScale(-1, 1); break;
+            case ExifInterface.ORIENTATION_ROTATE_90: matrix.setRotate(90); break;
+            case ExifInterface.ORIENTATION_TRANSVERSE: matrix.setRotate(-90); matrix.postScale(-1, 1); break;
+            case ExifInterface.ORIENTATION_ROTATE_270: matrix.setRotate(270); break;
+            default: return bitmap;
+        }
+        Bitmap corrected = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+        if (corrected != bitmap) bitmap.recycle();
+        return corrected;
+    }
+
     static Bitmap decode(File file, int width, int height) {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
@@ -200,8 +228,11 @@ final class MediaLibrary {
     void refreshDaily(boolean force) throws Exception {
         if (!HomeOptions.flag(context, "daily_enabled", false)) return;
         long last = HomeOptions.prefs(context).getLong("daily_checked", 0);
-        if (!force && System.currentTimeMillis() - last < 6 * 3600_000L) return;
+        long now = System.currentTimeMillis();
+        long attempted = HomeOptions.prefs(context).getLong("daily_attempted", 0);
+        if (!force && !shouldRefreshDaily(now, last, attempted)) return;
         if (!DAILY_BUSY.compareAndSet(false, true)) return;
+        HomeOptions.prefs(context).edit().putLong("daily_attempted", now).apply();
         try {
             JSONObject response = new JSONObject(new String(download(new URL(
                     "https://cn.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=zh-CN"), 256 * 1024), StandardCharsets.UTF_8));
@@ -239,6 +270,17 @@ final class MediaLibrary {
             }
             HomeOptions.prefs(context).edit().putLong("daily_checked", System.currentTimeMillis()).apply();
         } finally { DAILY_BUSY.set(false); }
+    }
+
+    static boolean shouldRefreshDaily(long now, long checked, long attempted) {
+        java.util.Calendar today = java.util.Calendar.getInstance();
+        today.setTimeInMillis(now);
+        java.util.Calendar previous = java.util.Calendar.getInstance();
+        previous.setTimeInMillis(checked);
+        boolean sameDay = today.get(java.util.Calendar.YEAR) == previous.get(java.util.Calendar.YEAR)
+                && today.get(java.util.Calendar.DAY_OF_YEAR) == previous.get(java.util.Calendar.DAY_OF_YEAR);
+        if (checked > 0 && now >= checked && now - checked < 6 * 3600_000L && sameDay) return false;
+        return attempted <= 0 || now < attempted || now - attempted >= 5 * 60_000L;
     }
 
     private JSONArray readDaily() {
