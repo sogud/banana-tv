@@ -21,11 +21,13 @@ public final class WallpaperStartupProbe extends Instrumentation {
     private boolean checkGlobalSettings;
     private boolean checkSystemScreensaver;
     private boolean checkWallpaperPeek;
+    private boolean checkPinRace;
     private boolean checkFeatureParity;
 
     @Override
     public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
+        checkPinRace = arguments != null && "true".equals(arguments.getString("pin_race"));
         checkWallpaperPeek = arguments != null && "true".equals(arguments.getString("wallpaper_peek"));
         checkSystemSettings = arguments != null && "true".equals(arguments.getString("system_settings"));
         checkGlobalSettings = arguments != null && "true".equals(arguments.getString("global_settings"));
@@ -36,6 +38,11 @@ public final class WallpaperStartupProbe extends Instrumentation {
 
     @Override
     public void onStart() {
+        if (checkPinRace) {
+            Bundle probe = PinRaceProbe.run(this);
+            finish("PASS".equals(probe.getString("result")) ? Activity.RESULT_OK : Activity.RESULT_CANCELED, probe);
+            return;
+        }
         if (checkWallpaperPeek) {
             Bundle probe = WallpaperPeekProbe.run(this);
             finish("PASS".equals(probe.getString("result")) ? Activity.RESULT_OK : Activity.RESULT_CANCELED, probe);

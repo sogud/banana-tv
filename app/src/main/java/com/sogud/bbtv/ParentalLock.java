@@ -24,16 +24,19 @@ final class ParentalLock {
 
     static void relock() { unlockedUntil = 0; }
 
+    static void unlock() { unlockedUntil = SystemClock.elapsedRealtime() + 600_000L; }
+
     static boolean valid(String pin) { return pin != null && pin.matches("[0-9]{4,8}"); }
 
     static void set(Context context, String pin) throws Exception {
         if (!valid(pin)) throw new IllegalArgumentException("Invalid PIN");
         byte[] salt = new byte[16];
         new SecureRandom().nextBytes(salt);
-        HomeOptions.prefs(context).edit()
+        boolean saved = HomeOptions.prefs(context).edit()
                 .putString("pin_salt", Base64.encodeToString(salt, Base64.NO_WRAP))
-                .putString("pin_hash", Base64.encodeToString(derive(pin, salt), Base64.NO_WRAP)).apply();
-        unlockedUntil = SystemClock.elapsedRealtime() + 600_000L;
+                .putString("pin_hash", Base64.encodeToString(derive(pin, salt), Base64.NO_WRAP)).commit();
+        if (!saved) throw new java.io.IOException("Could not save PIN");
+        relock();
     }
 
     static boolean verify(Context context, String pin) {
@@ -44,7 +47,6 @@ final class ParentalLock {
             byte[] expected = Base64.decode(HomeOptions.text(context, "pin_hash", ""), Base64.NO_WRAP);
             if (MessageDigest.isEqual(expected, derive(pin, salt))) {
                 failures = 0;
-                unlockedUntil = now + 600_000L;
                 return true;
             }
         } catch (Exception ignored) { }

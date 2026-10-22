@@ -23,6 +23,7 @@ public final class BananaDreamService extends DreamService {
         setFullscreen(true);
         setScreenBright(true);
         scene = new ScreensaverScene(this);
+        scene.setOnClickListener(view -> finish());
         setContentView(scene);
     }
 

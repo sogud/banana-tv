@@ -71,6 +71,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private AppAdapter adapter;
     private RecyclerView grid;
     private FrameLayout root;
+    private int pinRequest;
     private WallpaperPeek wallpaperPeek;
     private DockDecoration dockDecoration;
     private TextView btnControls;
@@ -112,6 +113,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             updateWifiLabel();
             updateLargeClock();
             weather.refresh(false);
+            refreshDailyInBackground();
             if (media.selected().equals("legacy") && WallpaperCatalog.mode(MainActivity.this) >= WallpaperCatalog.AMBIENT) updateAmbientMaterial();
             if (media.selected().equals("daily:latest") || media.selected().equals("photos:rotate")) loadWallpaper();
             handler.postDelayed(this, MINUTE_MS);
@@ -217,6 +219,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void returnToHome() {
+        pinRequest++;
         if (wallpaperPeek != null) wallpaperPeek.dismiss(false);
         if (activePanel != null) activePanel.dismiss();
         if (activeInputs != null) activeInputs.dismiss();
@@ -257,13 +260,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
         updateLargeClock();
         if (HomeIntegration.isSystemHome(this) || HomeIntegration.enabled(this)) InputSources.routeBoot(this);
-        featureWorker.execute(() -> {
-            try {
-                media.refreshDaily(false);
-                handler.post(() -> { if (!isDestroyed() && resumed && media.selected().startsWith("daily:")) loadWallpaper(); });
-            } catch (Exception ignored) { }
-            ReleaseUpdates.refresh(this);
-        });
+        refreshDailyInBackground();
+        featureWorker.execute(() -> ReleaseUpdates.refresh(this));
         // Return to the tile we left from, or the first one.
         grid.post(() -> {
             View focused = getCurrentFocus();
@@ -274,6 +272,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     protected void onPause() {
+        pinRequest++;
         if (wallpaperPeek != null) wallpaperPeek.dismiss(false);
         resumed = false;
         if (visibleHome.get() == this) visibleHome.clear();
@@ -603,6 +602,16 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private void chooseOption(String key, int title, int names, String[] values) {
         showMenu(getString(title), null, getResources().getStringArray(names), null, this::showAppearance, index -> {
             HomeOptions.set(this, key, values[index]); applyOptions(); showAppearance();
+        });
+    }
+
+    private void refreshDailyInBackground() {
+        if (!HomeOptions.flag(this, "daily_enabled", false)) return;
+        featureWorker.execute(() -> {
+            try { media.refreshDaily(false); } catch (Exception ignored) { }
+            handler.post(() -> {
+                if (!isDestroyed() && resumed && media.selected().startsWith("daily:")) loadWallpaper();
+            });
         });
     }
 
@@ -1704,41 +1713,25 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void showBrightness() {
-        if (!TvSystemPreferences.supportsBrightness(this)) {
-            showMenu(getString(R.string.brightness_title), getString(R.string.brightness_fallback),
-                    new String[]{getString(R.string.picture_settings)}, null, this::showControlCenter,
-                    ignored -> { Intent intent = new Intent(Settings.ACTION_DISPLAY_SETTINGS);
-                        if (intent.resolveActivity(getPackageManager()) != null) open(intent); else openSystemSettings(false); });
-            return;
-        }
-        Dialog dialog = new Dialog(this);
-        LinearLayout content = panelContent(dialog, getString(R.string.brightness_title));
-        android.widget.SeekBar slider = new android.widget.SeekBar(this); slider.setMax(255); slider.setMin(1);
-        slider.setContentDescription(getString(R.string.brightness_title));
-        slider.setProgress(TvSystemPreferences.brightness(this));
-        slider.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(android.widget.SeekBar bar, int value, boolean fromUser) {
-                if (!fromUser) return;
-                if (!TvSystemPreferences.setBrightness(MainActivity.this, value)) {
-                    bar.setEnabled(false);
-                    Toast.makeText(MainActivity.this, R.string.brightness_fallback, Toast.LENGTH_LONG).show();
-                }
-            }
-            @Override public void onStartTrackingTouch(android.widget.SeekBar bar) { }
-            @Override public void onStopTrackingTouch(android.widget.SeekBar bar) { }
-        });
-        content.addView(slider, new LinearLayout.LayoutParams(-1, dp(56)));
-        setPanelBack(dialog, this::showControlCenter); showPanel(dialog); slider.requestFocus();
+        // No direct panel-backlight profile has passed physical-device acceptance yet.
+        showMenu(getString(R.string.brightness_title), getString(R.string.brightness_fallback),
+                new String[]{getString(R.string.picture_settings)}, null, this::showControlCenter,
+                ignored -> {
+                    Intent intent = new Intent(Settings.ACTION_DISPLAY_SETTINGS);
+                    if (intent.resolveActivity(getPackageManager()) != null) open(intent);
+                    else openSystemSettings(false);
+                });
     }
 
     private void protect(Runnable action) {
         if (!ParentalLock.locked(this)) { action.run(); return; }
         showPin(getString(R.string.pin_enter), pin -> {
+            int request = ++pinRequest;
             featureWorker.execute(() -> {
                 boolean accepted = ParentalLock.verify(this, pin);
                 handler.post(() -> {
-                    if (isDestroyed()) return;
-                    if (accepted) action.run();
+                    if (isDestroyed() || !resumed || request != pinRequest) return;
+                    if (accepted) { ParentalLock.unlock(); action.run(); }
                     else { Toast.makeText(this, R.string.pin_error, Toast.LENGTH_SHORT).show(); protect(action); }
                 });
             });
@@ -1781,9 +1774,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     if (enabled) { ParentalLock.disable(this); showLauncherSettings(); return; }
                     showPin(getString(R.string.pin_create), first -> showPin(getString(R.string.pin_confirm), second -> {
                         if (!first.equals(second)) { Toast.makeText(this, R.string.pin_mismatch, Toast.LENGTH_SHORT).show(); showPinSettings(); return; }
+                        int request = ++pinRequest;
                         featureWorker.execute(() -> {
-                            try { ParentalLock.set(this, first); } catch (Exception ignoredError) { }
-                            handler.post(this::showLauncherSettings);
+                            boolean saved;
+                            try { ParentalLock.set(this, first); saved = true; }
+                            catch (Exception error) { saved = false; }
+                            final boolean success = saved;
+                            handler.post(() -> {
+                                if (isDestroyed() || !resumed || request != pinRequest) return;
+                                if (success) { ParentalLock.unlock(); showLauncherSettings(); }
+                                else Toast.makeText(this, R.string.pin_save_failed, Toast.LENGTH_LONG).show();
+                            });
                         });
                     }));
                 });
