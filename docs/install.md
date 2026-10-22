@@ -206,3 +206,23 @@ Open **设置 → 遥控器 → 添加按键**, press a supported shortcut/media
 Use **恢复原功能** for one assignment or **恢复全部按键** for all of them. Clear assignments as well as Home compatibility before disabling the shared accessibility service or revoking its recovery permission. Unavailable target apps leave the original key behavior intact when a key press begins. Power, volume, voice, Home, Back, navigation and text-entry keys cannot be assigned.
 
 The app can only receive keys Android forwards to accessibility services. Firmware-owned buttons may launch their original app before, or instead of, a key event. Learning a key does not establish successful global interception. Test with the physical remote in other apps; the new assignment UI has not yet passed this device check. No root, keylayout replacement, binary patch, bind mount or shell-command execution is included.
+
+## Unreleased configuration features
+
+Open **控制中心 → 手机配置** and scan the QR code from a phone on the same trusted LAN. The session expires after ten minutes and stops when the panel closes or Home relocks. It uses HTTP on the LAN; anyone with the temporary link can change these settings, so keep it private. It does not expose ADB or a shell. Photos are limited to 20 MB each, 40 million input pixels and 50 saved images; the app downsamples and re-encodes them without original metadata. Custom icons can target only discovered, installed applications.
+
+For personal wallpapers, open **设置 → 壁纸 → 上传壁纸**, scan the QR code and choose a JPG, PNG or WebP image on the phone page. An uploaded image is saved locally and selected automatically. Tap another thumbnail to switch, or delete an uploaded picture from that page. This upload flow is in the development source; it is not in the public v0.1.11 APK.
+
+Choose **设置 → 壁纸 → 更新每日图片** to opt into Bing downloads. Online daily pictures and Apple's aerial films are cached/streamed for display and are not redistributed in the APK. Aerial playback uses HTTPS, a 48 MiB opener cache and a 24 MiB target playback buffer. Connection/read/no-frame failures advance through films and then show a local photo. Left/Right switches films; other navigation leaves the screen saver.
+
+**设置 → 设置访问密码** protects settings and hidden apps. It is a local 4–8 digit PIN with a salted hash, a ten-minute unlock and Home relocking; it does not control other applications. If forgotten, a debuggable build can use `run-as` to back up the `home` preferences and remove only `pin_hash` and `pin_salt`. An ordinary ADB shell cannot edit a non-debuggable release's private preferences; without Root, recovery requires clearing app data, which also removes all settings and needs the owner's explicit agreement.
+
+**设置 → 启动与保活** offers optional notification binding and ADB restoration. Notification contents are never read. ADB restoration requires the optional secure-settings permission and only watches Android's `adb_enabled`; it cannot guarantee a vendor network-debugging switch, port or authorization survives a reboot. Turning the option off stops restoration and leaves Android's current debugging state unchanged; disable debugging in the TV settings when finished. Source, wake and physical-TV behavior still require device acceptance.
+
+## Guard build
+
+Use the normal release first. Only when firmware rejects a package declaring `CATEGORY_HOME`, build `:app:assembleGuard` with the same four signing variables as a release. The output is `app/build/outputs/apk/guard/app-guard.apk`. Its main activity remains `com.sogud.bbtv/.MainActivity`, but it does not register as native Home. The owner must enable the reversible accessibility-based Home compatibility service. Updating a working native-Home installation to Guard can return Home to the stock launcher, so prepare ADB recovery first.
+
+To return to the standard build, install a standard APK signed by the same key and restore the system's default-Home selection. Keep the stock launcher installed. This variant is not a firmware replacement.
+
+For disposable emulator checks, add `-e feature_parity true` to the framework instrumentation command above. It tests settings migration, ordering, PIN, image validation and the phone session using generated fixtures and restores preferences. It refuses non-emulator hardware. Sign both APKs with the emulator's existing key; an unsigned instrumentation APK is not installable. Physical-TV tests remain separate.

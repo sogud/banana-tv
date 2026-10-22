@@ -20,18 +20,32 @@ public final class WallpaperStartupProbe extends Instrumentation {
     private boolean checkSystemSettings;
     private boolean checkGlobalSettings;
     private boolean checkSystemScreensaver;
+    private boolean checkWallpaperPeek;
+    private boolean checkFeatureParity;
 
     @Override
     public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
+        checkWallpaperPeek = arguments != null && "true".equals(arguments.getString("wallpaper_peek"));
         checkSystemSettings = arguments != null && "true".equals(arguments.getString("system_settings"));
         checkGlobalSettings = arguments != null && "true".equals(arguments.getString("global_settings"));
+        checkFeatureParity = arguments != null && "true".equals(arguments.getString("feature_parity"));
         checkSystemScreensaver = arguments != null && "true".equals(arguments.getString("system_screensaver"));
         start();
     }
 
     @Override
     public void onStart() {
+        if (checkWallpaperPeek) {
+            Bundle probe = WallpaperPeekProbe.run(this);
+            finish("PASS".equals(probe.getString("result")) ? Activity.RESULT_OK : Activity.RESULT_CANCELED, probe);
+            return;
+        }
+        if (checkFeatureParity) {
+            Bundle probe = FeatureParityProbe.run(getTargetContext());
+            finish("PASS".equals(probe.getString("result")) ? Activity.RESULT_OK : Activity.RESULT_CANCELED, probe);
+            return;
+        }
         if (checkSystemScreensaver) {
             Bundle probe = SystemScreensaverProbe.run(getTargetContext());
             finish("PASS".equals(probe.getString("result"))

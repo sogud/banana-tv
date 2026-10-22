@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.12-dev — source preview
+
+- Add persistent tile ordering, five-column layout, optional app names/large clock, custom icons and pinned inputs.
+- Add aerial, photo and moving-clock screen savers, daily pictures and app-colored backgrounds.
+- Add temporary QR phone configuration with local wallpaper upload, photo removal and icon/weather controls.
+- Add settings PIN, capability-aware audio/display controls, optional recovery and Guard packaging.
+- Add full-screen wallpaper viewing with a long Back press, preserving the wallpaper player and focus.
+- These features are a source preview. Physical-TV acceptance remains pending; the public v0.1.11 APK is unchanged.
+
+- Replace the solid status bar with adaptive weather/time text and an on-demand Control Center.
+- Center the dock when fewer than four apps are available; retain adjustable tile sizing.
+- Refine tile corners and settings spacing, put appearance controls first, and restore the selected settings row on Back.
+- Remove the Spring video's dark title fade and regenerate visible posters and still previews.
+
+- Add eight offline, 1080p landscape photographs with CC0/public-domain provenance and small gallery previews. Preserve all ten existing wallpaper indices.
+- Replace the wallpaper text list with a remote-controlled thumbnail grid.
+- Use the selected still for the screen saver, with background decoding and no video player.
+- Describe compatibility by Android/API and firmware versions rather than a specific TV model.
+
+
 ## 0.1.11 — 2026-10-20
 
 First public preview.

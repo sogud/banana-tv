@@ -10,9 +10,9 @@ import android.os.Build;
 /** Standard TV inputs first; the verified Xiaomi player uses a separate source-number API. */
 final class TvInputRouting {
     static Intent create(Context context, TvInputInfo input) {
-        Intent standard = new Intent(Intent.ACTION_VIEW).setDataAndType(
-                TvContract.buildChannelUriForPassthroughInput(input.getId()),
-                "vnd.android.cursor.item/channel");
+        Intent standard = new Intent(Intent.ACTION_VIEW, input.isPassthroughInput()
+                ? TvContract.buildChannelUriForPassthroughInput(input.getId())
+                : TvContract.buildChannelsUriForInput(input.getId()));
         if (standard.resolveActivity(context.getPackageManager()) != null) return standard;
         if (Build.VERSION.SDK_INT != 28 || !"mulan".equals(Build.DEVICE)) return null;
         try {

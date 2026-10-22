@@ -55,23 +55,39 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     static int COLUMNS = 4;
     private static final long MINUTE_MS = 60_000L;
     private String liveTvPkg;
+    private MediaLibrary media;
+    private PhoneServer phoneServer;
+    private int movingTile = -1;
+    private final java.util.concurrent.ExecutorService featureWorker = java.util.concurrent.Executors.newFixedThreadPool(2);
+    private volatile List<AppAdapter.Entry> phoneApps = java.util.Collections.emptyList();
+    private final android.content.BroadcastReceiver wakeSource = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (Intent.ACTION_SCREEN_ON.equals(intent.getAction()) && HomeOptions.flag(context, "wake_input", false)) {
+                InputSources.route(context, HomeOptions.text(context, "boot_source", ""));
+            }
+        }
+    };
 
     private AppAdapter adapter;
     private RecyclerView grid;
     private FrameLayout root;
+    private WallpaperPeek wallpaperPeek;
     private DockDecoration dockDecoration;
-    private TextView btnWifi;
+    private TextView btnControls;
+    private String networkLabel;
     private TextView btnWeather;
     private WeatherController weather;
     private Dialog weatherPanel;
     private Dialog remoteCapturePanel;
     private int capturedRemoteKey = -1;
     private int lastFocused = 0;
+    private int focusRequest;
     private float density;
     private int wallpaperRequest;
     private boolean wallpaperReady;
     private WallpaperPalette wallpaperPalette = WallpaperPalette.DEFAULT;
     private Dialog activePanel;
+    private final java.util.Map<String, Integer> menuPositions = new java.util.HashMap<>();
     private PopupWindow activeInputs;
     private VideoWallpaper videoWallpaper;
     private AmbientWallpaperView ambientWallpaper;
@@ -83,6 +99,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable startScreensaver = () -> {
+        if (wallpaperPeek != null && wallpaperPeek.isShowing()) return;
         if (!resumed || !hasWindowFocus() || activePanel != null
                 || (activeInputs != null && activeInputs.isShowing())) return;
         if (systemScreensaverEnabled) {
@@ -93,8 +110,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         @Override
         public void run() {
             updateWifiLabel();
+            updateLargeClock();
             weather.refresh(false);
-            if (WallpaperCatalog.mode(MainActivity.this) >= WallpaperCatalog.AMBIENT) updateAmbientMaterial();
+            if (media.selected().equals("legacy") && WallpaperCatalog.mode(MainActivity.this) >= WallpaperCatalog.AMBIENT) updateAmbientMaterial();
+            if (media.selected().equals("daily:latest") || media.selected().equals("photos:rotate")) loadWallpaper();
             handler.postDelayed(this, MINUTE_MS);
         }
     };
@@ -102,12 +121,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (isHomeRequest(getIntent())) ParentalLock.relock();
         WindowManager.LayoutParams windowParams = getWindow().getAttributes();
         windowParams.preferredRefreshRate = 60f;
         getWindow().setAttributes(windowParams);
         setContentView(R.layout.activity_main);
         density = getResources().getDisplayMetrics().density;
-        COLUMNS = Math.max(1, getResources().getInteger(R.integer.columns));
+        COLUMNS = HomeOptions.columns(this);
+        media = new MediaLibrary(this);
         liveTvPkg = getString(R.string.live_tv_package).trim();
 
         root = findViewById(R.id.root);
@@ -122,7 +143,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         videoWallpaper = findViewById(R.id.videoWallpaper);
         ambientWallpaper = findViewById(R.id.ambientWallpaper);
-        btnWifi = findViewById(R.id.btnWifi);
+        btnControls = findViewById(R.id.btnControls);
         btnWeather = findViewById(R.id.btnWeather);
         weather = new WeatherController(this, (snapshot, failed) -> {
             updateWeather(snapshot, failed);
@@ -131,7 +152,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 showWeatherSettings();
             }
         });
-        tintGlass(findViewById(R.id.topButtons), true);
+        updateHeaderColors(null);
 
         grid = findViewById(R.id.grid);
         grid.setLayoutManager(new GridLayoutManager(this, COLUMNS));
@@ -142,37 +163,43 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         loadWallpaper();
         adapter = new AppAdapter(this, this, COLUMNS);
         grid.setAdapter(adapter);
+        grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override public void onScrolled(@NonNull RecyclerView view, int dx, int dy) { updateLargeClock(); }
+        });
 
         // tvOS layout: push the dock row to the bottom of the screen; the grid hides below until you press Down.
         grid.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
             int h = b - t;
             updateDockSize();
-            int dockRow = dp(96 * adapter.tileScale() + 28 + 10 + 16);
-            int want = Math.max(0, h - dockRow);
+            int dockRow = dp(96 * adapter.tileScale() + (HomeOptions.text(this, "name_style", "hidden").equals("hidden") ? 28 : 52) + 10 + 16);
+            int want = HomeOptions.text(this, "layout", "dock").equals("grid")
+                    ? Math.max(dp(120), h / 2 - dp(10)) : Math.max(0, h - dockRow);
             if (grid.getPaddingTop() != want) {
                 grid.setPadding(grid.getPaddingLeft(), want, grid.getPaddingRight(), grid.getPaddingBottom());
             }
         });
 
-        View btnInputs = findViewById(R.id.btnInputs);
-        View btnSettings = findViewById(R.id.btnSettings);
-        btnInputs.setOnClickListener(v -> showInputs());
-        btnWifi.setOnClickListener(v -> openSystemSettings(true));
-        btnWeather.setOnClickListener(v -> showWeatherSettings());
-        btnSettings.setOnClickListener(v -> showLauncherSettings());
+        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(wakeSource,
+                new android.content.IntentFilter(Intent.ACTION_SCREEN_ON), Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(wakeSource, new android.content.IntentFilter(Intent.ACTION_SCREEN_ON));
+        updateLargeClock();
+        btnWeather.setOnClickListener(v -> protect(this::showWeatherSettings));
+        btnControls.setOnClickListener(v -> showControlCenter());
 
         // Keep focus on the top bar at its ends and at the top: Android's focus finder would otherwise
         // jump to a tile far below when there is nothing in that direction.
         View.OnKeyListener pillKeys = (v, keyCode, event) -> {
             if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return true;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                focusTile(lastFocused);
+                return true;
+            }
             if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT && v.getId() == R.id.btnWeather) return true;
-            return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == R.id.btnSettings;
+            return keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && v.getId() == R.id.btnControls;
         };
-        btnInputs.setOnKeyListener(pillKeys);
         btnWeather.setOnKeyListener(pillKeys);
-        btnWifi.setOnKeyListener(pillKeys);
-        btnSettings.setOnKeyListener(pillKeys);
+        btnControls.setOnKeyListener(pillKeys);
 
 
     }
@@ -181,16 +208,21 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         setIntent(intent);
-        boolean nativeHome = Intent.ACTION_MAIN.equals(intent.getAction())
-                && intent.hasCategory(Intent.CATEGORY_HOME);
-        if (nativeHome || intent.getBooleanExtra(HomeIntegration.HOME_REQUEST, false)) {
-            returnToHome();
-        }
+        if (isHomeRequest(intent)) returnToHome();
+    }
+
+    private static boolean isHomeRequest(Intent intent) {
+        return Intent.ACTION_MAIN.equals(intent.getAction()) && intent.hasCategory(Intent.CATEGORY_HOME)
+                || intent.getBooleanExtra(HomeIntegration.HOME_REQUEST, false);
     }
 
     private void returnToHome() {
+        if (wallpaperPeek != null) wallpaperPeek.dismiss(false);
         if (activePanel != null) activePanel.dismiss();
         if (activeInputs != null) activeInputs.dismiss();
+        ParentalLock.relock();
+        stopPhone();
+        movingTile = -1;
         lastFocused = 0;
         grid.post(() -> focusTile(0));
         resetScreensaver();
@@ -212,13 +244,26 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         updateVideoWallpaper();
         if (screensaverScene != null) screensaverScene.setRunning(true);
         refreshScreensaverTimer();
-        adapter.reload(() -> grid.post(() -> focusTile(lastFocused)));
+        adapter.reload(() -> grid.post(() -> {
+            updateDockSize();
+            phoneApps = adapter.entries();
+            focusTile(lastFocused);
+        }));
         updateWifiLabel();
         updateWeather(weather.snapshot(), weather.failed());
         weather.refresh(false);
         updateDockSize();
         handler.postDelayed(minuteTick, MINUTE_MS);
 
+        updateLargeClock();
+        if (HomeIntegration.isSystemHome(this) || HomeIntegration.enabled(this)) InputSources.routeBoot(this);
+        featureWorker.execute(() -> {
+            try {
+                media.refreshDaily(false);
+                handler.post(() -> { if (!isDestroyed() && resumed && media.selected().startsWith("daily:")) loadWallpaper(); });
+            } catch (Exception ignored) { }
+            ReleaseUpdates.refresh(this);
+        });
         // Return to the tile we left from, or the first one.
         grid.post(() -> {
             View focused = getCurrentFocus();
@@ -229,6 +274,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     protected void onPause() {
+        if (wallpaperPeek != null) wallpaperPeek.dismiss(false);
         resumed = false;
         if (visibleHome.get() == this) visibleHome.clear();
         if (screensaverScene != null) screensaverScene.setRunning(false);
@@ -252,9 +298,37 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     @Override
+    public boolean onKeyLongPress(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_BACK && activePanel == null
+                && (activeInputs == null || !activeInputs.isShowing())) {
+            if (wallpaperPeek == null) wallpaperPeek = new WallpaperPeek(root);
+            wallpaperPeek.show(event.getDownTime());
+            return true;
+        }
+        return super.onKeyLongPress(keyCode, event);
+    }
+
+    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) resetScreensaver();
+        if (hasFocus && movingTile >= 0) grid.postOnAnimation(() -> focusTile(movingTile));
+    }
+
+    @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        if (movingTile >= 0) {
+            int code = event.getKeyCode();
+            if (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT
+                    || code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) onTileVerticalKey(movingTile, code);
+                return true;
+            }
+            if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_BACK) {
+                if (event.getAction() == KeyEvent.ACTION_UP) onTileActivate(movingTile);
+                return true;
+            }
+        }
+        return super.dispatchKeyEvent(event);
     }
 
     private void resetScreensaver() {
@@ -274,7 +348,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void updateVideoWallpaper() {
-        int mode = WallpaperCatalog.mode(this);
+        int mode = media.selected().equals("legacy") ? WallpaperCatalog.mode(this) : WallpaperCatalog.STILL;
         boolean visible = resumed && screensaverScene == null && !BananaDreamService.isRunning();
         videoWallpaper.setVisibility(mode == WallpaperCatalog.VIDEO ? View.VISIBLE : View.GONE);
         videoWallpaper.setRunning(visible && mode == WallpaperCatalog.VIDEO);
@@ -297,6 +371,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onDestroy() {
         if (visibleHome.get() == this) visibleHome.clear();
+        stopPhone();
+        unregisterReceiver(wakeSource);
+        featureWorker.shutdownNow();
         adapter.close();
         weather.close();
         super.onDestroy();
@@ -305,7 +382,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_MENU && event.getRepeatCount() == 0) {
-            showLauncherSettings();
+            View focused = getCurrentFocus();
+            if (focused != null && grid.findContainingViewHolder(focused) != null) onTileAction(lastFocused);
+            else showLauncherSettings();
             return true;
         }
         return super.onKeyDown(keyCode, event);
@@ -319,17 +398,17 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(24), dp(28), dp(24), dp(20));
+        content.setPadding(dp(20), dp(24), dp(20), dp(20));
         content.setBackgroundResource(R.drawable.panel_glass);
-        tintGlass(content, false);
+        tintPanel(content);
         TextView heading = new TextView(this);
         heading.setText(title);
         heading.setTextColor(Color.WHITE);
-        heading.setTextSize(28);
+        heading.setTextSize(26);
         heading.setSingleLine(true);
         heading.setEllipsize(android.text.TextUtils.TruncateAt.END);
         heading.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
-        heading.setPadding(dp(6), 0, 0, dp(20));
+        heading.setPadding(dp(12), 0, 0, dp(20));
         content.addView(heading);
         dialog.setContentView(content);
         return content;
@@ -343,9 +422,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         WindowManager.LayoutParams params = window.getAttributes();
         params.dimAmount = 0.25f;
         params.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
-        params.width = dp(350);
-        params.height = getResources().getDisplayMetrics().heightPixels - dp(36);
-        params.x = dp(18);
+        params.width = dp(336);
+        params.height = getResources().getDisplayMetrics().heightPixels - dp(48);
+        params.x = dp(24);
         window.setAttributes(params);
         activePanel = dialog;
         dialog.setOnDismissListener(ignored -> {
@@ -353,12 +432,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             root.post(() -> {
                 View focused = getCurrentFocus();
                 if (focused != null && focused.getId() == R.id.card) onTileFocused(lastFocused, focused);
+                else if (focused == null || focused == grid) focusTile(lastFocused);
             });
         });
         dialog.show();
     }
 
-    private void showMenu(String title, String description, String[] labels, String[] values,
+    private Dialog showMenu(String title, String description, String[] labels, String[] values,
                           Runnable parent, MenuAction action) {
         Dialog dialog = new Dialog(this);
         LinearLayout content = panelContent(dialog, title);
@@ -373,6 +453,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(false);
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
         LinearLayout rows = new LinearLayout(this);
         rows.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(rows);
@@ -391,7 +473,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             row.setContentDescription(labels[i] + (value == null ? "" : "，" + value));
             TextView label = new TextView(this);
             label.setText(labels[i]);
-            label.setTextSize(17);
+            label.setTextSize(16);
             label.setSingleLine(true);
             label.setEllipsize(android.text.TextUtils.TruncateAt.END);
             label.setTextColor(getColorStateList(R.color.panel_text));
@@ -400,7 +482,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             row.addView(label, new LinearLayout.LayoutParams(0, -2, 1));
             TextView detail = new TextView(this);
             detail.setText(value == null ? "›" : value);
-            detail.setTextSize(value == null ? 24 : 15);
+            detail.setTextSize(value == null ? 22 : 14);
             detail.setTextColor(getColorStateList(R.color.panel_text));
             detail.setAlpha(0.76f);
             detail.setDuplicateParentStateEnabled(true);
@@ -412,14 +494,40 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             row.setNextFocusRightId(row.getId());
             if (i == 0) row.setNextFocusUpId(row.getId());
             if (i == labels.length - 1) row.setNextFocusDownId(row.getId());
-            LinearLayout.LayoutParams item = new LinearLayout.LayoutParams(-1, dp(48));
-            item.bottomMargin = dp(6);
+            LinearLayout.LayoutParams item = new LinearLayout.LayoutParams(-1, dp(44));
+            item.bottomMargin = dp(4);
             rows.addView(row, item);
+            row.setOnFocusChangeListener((view, focused) -> {
+                if (focused) menuPositions.put(title, index);
+            });
             row.setOnClickListener(v -> { dialog.dismiss(); action.select(index); });
         }
         setPanelBack(dialog, parent);
         showPanel(dialog);
-        if (rows.getChildCount() > 0) rows.getChildAt(0).requestFocus();
+        if (rows.getChildCount() > 0) {
+            int selected = Math.min(menuPositions.getOrDefault(title, 0), rows.getChildCount() - 1);
+            rows.getChildAt(selected).requestFocusFromTouch();
+        }
+        return dialog;
+    }
+
+    private void showControlCenter() {
+        updateWifiLabel();
+        showMenu(getString(R.string.control_center), null,
+                new String[]{getString(R.string.inputs), getString(R.string.volume_title),
+                        getString(R.string.brightness_title), getString(R.string.network_title),
+                        getString(R.string.start_screensaver), getString(R.string.phone_setup),
+                        getString(R.string.settings), getString(R.string.update_title)},
+                new String[]{null, null, null, networkLabel, null, null, null, ReleaseUpdates.available(this)}, null, which -> {
+                    if (which == 0) showInputs();
+                    else if (which == 1) showVolume();
+                    else if (which == 2) showBrightness();
+                    else if (which == 3) openSystemSettings(true);
+                    else if (which == 4) showScreensaver(false);
+                    else if (which == 5) protect(this::showPhoneSetup);
+                    else if (which == 6) showLauncherSettings();
+                    else protect(this::showUpdates);
+                });
     }
 
     private void setPanelBack(Dialog dialog, Runnable parent) {
@@ -436,49 +544,93 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void showLauncherSettings() {
-        String[] values = {null, null, LauncherPreferences.dockPercent(this) + "%", null,
+        if (ParentalLock.locked(this)) { protect(this::showLauncherSettings); return; }
+        String[] values = {LauncherPreferences.dockPercent(this) + "%", null, screensaverState(), null,
                 weather.mode().equals("off") ? getString(R.string.weather_off) : null,
-                null, null, screensaverState(), homeState(), null, null, null};
+                null, null, homeState(), null, null, null, null, null, onOff(ParentalLock.enabled(this)), null, null, null};
         showMenu(getString(R.string.launcher_settings), null,
                 getResources().getStringArray(R.array.settings_actions), values, null, which -> {
-            if (which == 0) openSystemSettings(false);
-            else if (which == 1) chooseDockSlot();
-            else if (which == 2) showAppearance();
-            else if (which == 3) chooseWallpaper();
+            if (which == 0) showAppearance();
+            else if (which == 1) chooseWallpaper();
+            else if (which == 2) showScreensaverSettings();
+            else if (which == 3) chooseDockSlot();
             else if (which == 4) showWeatherSettings();
             else if (which == 5) showRemoteSettings();
             else if (which == 6) showAppManagement();
-            else if (which == 7) showScreensaverSettings();
-            else if (which == 8) showHomeIntegration();
-            else if (which == 9) showSystemPreferences();
+            else if (which == 7) showHomeIntegration();
+            else if (which == 8) showSystemPreferences();
+            else if (which == 9) openSystemSettings(false);
             else if (which == 10) showAbout();
-            else showStockConfirmation();
+            else if (which == 11) showStockConfirmation();
+            else if (which == 12) showInputSettings();
+            else if (which == 13) showPinSettings();
+            else if (which == 14) showRecoveryOptions();
+            else if (which == 15) showPhoneSetup();
+            else showUpdates();
         });
     }
 
     private void showAppearance() {
         boolean motion = getSharedPreferences("home", MODE_PRIVATE).getBoolean("icon_motion", true);
-        showMenu(getString(R.string.appearance_title), getString(R.string.appearance_description),
-                new String[]{getString(R.string.dock_size), getString(R.string.icon_motion)},
-                new String[]{LauncherPreferences.dockPercent(this) + "%", getString(motion ? R.string.home_on : R.string.home_off)},
+        showMenu(getString(R.string.appearance_title), null,
+                new String[]{getString(R.string.dock_size), getString(R.string.icon_motion),
+                        getString(R.string.layout_title), getString(R.string.name_style_title),
+                        getString(R.string.focus_style_title), getString(R.string.clock_style_title),
+                        getString(R.string.back_screensaver), getString(R.string.phone_setup)},
+                new String[]{LauncherPreferences.dockPercent(this) + "%", onOff(motion), null, null, null, null,
+                        onOff(HomeOptions.flag(this, "back_saver", false)), null},
                 this::showLauncherSettings, which -> {
-                    if (which == 1) {
-                        LauncherPreferences.setMotionEnabled(this, !motion);
-                        updateVideoWallpaper();
-                        adapter.notifyDataSetChanged();
-                        showAppearance();
-                    } else {
+                    if (which == 0) {
                         int[] sizes = {75, 85, 90, 100, 110};
                         String[] labels = new String[sizes.length];
                         for (int i = 0; i < sizes.length; i++) labels[i] = sizes[i] + "%";
                         showMenu(getString(R.string.dock_size), null, labels, null, this::showAppearance, index -> {
-                            LauncherPreferences.setDockPercent(this, sizes[index]);
-                            updateDockSize();
-                            grid.requestLayout();
-                            showAppearance();
+                            LauncherPreferences.setDockPercent(this, sizes[index]); updateDockSize(); grid.requestLayout(); showAppearance();
                         });
-                    }
+                    } else if (which == 1) {
+                        LauncherPreferences.setMotionEnabled(this, !motion); adapter.notifyDataSetChanged(); showAppearance();
+                    } else if (which == 2) chooseOption("layout", R.string.layout_title, R.array.layout_names, new String[]{"dock", "grid"});
+                    else if (which == 3) chooseOption("name_style", R.string.name_style_title, R.array.name_style_names, new String[]{"hidden", "focused", "all"});
+                    else if (which == 4) chooseOption("focus_style", R.string.focus_style_title, R.array.focus_style_names, new String[]{"standard", "contrast"});
+                    else if (which == 5) chooseOption("large_clock", R.string.clock_style_title, R.array.clock_style_names, new String[]{"off", "left", "right"});
+                    else if (which == 6) { HomeOptions.set(this, "back_saver", !HomeOptions.flag(this, "back_saver", false)); showAppearance(); }
+                    else showPhoneSetup();
                 });
+    }
+
+    private String onOff(boolean enabled) { return getString(enabled ? R.string.home_on : R.string.home_off); }
+
+    private void chooseOption(String key, int title, int names, String[] values) {
+        showMenu(getString(title), null, getResources().getStringArray(names), null, this::showAppearance, index -> {
+            HomeOptions.set(this, key, values[index]); applyOptions(); showAppearance();
+        });
+    }
+
+    private void applyOptions() {
+        int columns = HomeOptions.columns(this);
+        if (columns != COLUMNS) {
+            COLUMNS = columns;
+            grid.removeItemDecoration(dockDecoration);
+            dockDecoration = new DockDecoration(COLUMNS, density);
+            grid.addItemDecoration(dockDecoration);
+        }
+        updateDockSize(); grid.requestLayout(); updateLargeClock(); loadWallpaper();
+        adapter.reload(() -> { phoneApps = adapter.entries(); adapter.notifyDataSetChanged(); });
+    }
+
+    private void updateLargeClock() {
+        View group = findViewById(R.id.largeClockGroup);
+        ((TextView) findViewById(R.id.largeDate)).setText(new java.text.SimpleDateFormat(
+                getString(R.string.large_date_pattern), java.util.Locale.SIMPLIFIED_CHINESE).format(new java.util.Date()));
+        String alignment = HomeOptions.text(this, "large_clock", "off");
+        boolean browsing = grid != null && grid.getLayoutManager() instanceof GridLayoutManager
+                && ((GridLayoutManager) grid.getLayoutManager()).findFirstVisibleItemPosition() >= COLUMNS;
+        boolean show = !alignment.equals("off") && lastFocused < COLUMNS && !browsing;
+        group.setVisibility(show ? View.VISIBLE : View.GONE);
+        FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) group.getLayoutParams();
+        params.gravity = Gravity.TOP | (alignment.equals("right") ? Gravity.END : Gravity.START);
+        group.setLayoutParams(params);
+        findViewById(R.id.headerClock).setVisibility(show ? View.GONE : View.VISIBLE);
     }
 
     private void updateWeather(WeatherController.Snapshot snapshot, boolean failed) {
@@ -562,6 +714,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void showAppManagement() {
+        if (ParentalLock.locked(this)) { protect(this::showAppManagement); return; }
         showMenu(getString(R.string.apps_title), getString(R.string.apps_description),
                 new String[]{getString(R.string.apps_hide), getString(R.string.apps_restore), getString(R.string.apps_system)},
                 null, this::showLauncherSettings, which -> {
@@ -573,7 +726,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                         List<String> packages = new ArrayList<>();
                         List<String> labels = new ArrayList<>();
                         if (which == 0) {
-                            for (AppAdapter.Entry entry : adapter.entries()) { packages.add(entry.pkg); labels.add(entry.label); }
+                            for (AppAdapter.Entry entry : adapter.entries()) { if (entry.input != null) continue; packages.add(entry.pkg); labels.add(entry.label); }
                         } else {
                             for (String pkg : LauncherPreferences.hiddenApps(this)) {
                                 packages.add(pkg);
@@ -774,14 +927,20 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         systemScreensaverEnabled = system;
         systemScreensaverMinutes = system ? SystemScreensaver.minutes(this) : 0;
         String[] actions = {getString(R.string.screensaver_start), getString(R.string.screensaver_system),
-                getString(R.string.screensaver_preview)};
-        String[] values = {screensaverState(), getString(system ? R.string.home_on : R.string.home_off), null};
+                getString(R.string.screensaver_preview), getString(R.string.saver_mode_title)};
+        String[] values = {screensaverState(), getString(system ? R.string.home_on : R.string.home_off), null, null};
         showMenu(getString(R.string.screensaver_title), getString(system
                         ? R.string.screensaver_system_active : R.string.screensaver_description),
                 actions, values, this::showLauncherSettings, index -> {
             if (index == 0) chooseScreensaverTime();
             else if (index == 1) chooseSystemScreensaver();
-            else if (SystemScreensaver.enabled(this)) {
+            else if (index == 3) {
+                showMenu(getString(R.string.saver_mode_title), getString(R.string.aerial_description),
+                        getResources().getStringArray(R.array.saver_mode_names), null, this::showScreensaverSettings, selected -> {
+                            HomeOptions.set(this, "screensaver_mode", new String[]{"wallpaper", "aerial", "photos", "clock"}[selected]);
+                            showScreensaverSettings();
+                        });
+            } else if (SystemScreensaver.enabled(this)) {
                 Intent preview = SystemScreensaver.previewIntent();
                 if (preview.resolveActivity(getPackageManager()) != null) open(preview);
                 else Toast.makeText(this, R.string.not_available, Toast.LENGTH_LONG).show();
@@ -831,7 +990,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                     });
             return;
         }
-        int[] minutes = {0, 1, 2, 5, 15, 30};
+        int[] minutes = {0, 1, 2, 5, 10, 15, 20, 30};
         String[] labels = new String[minutes.length];
         String[] values = new String[minutes.length];
         int current = SystemScreensaver.enabled(this) ? SystemScreensaver.minutes(this)
@@ -868,6 +1027,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         dialog.setOnKeyListener((ignored, keyCode, event) -> {
             if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN
                     || keyCode == KeyEvent.KEYCODE_VOLUME_MUTE || keyCode == KeyEvent.KEYCODE_POWER) return false;
+            if (scene.handleKey(keyCode, event)) return true;
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 dialog.dismiss();
                 if (preview) showScreensaverSettings();
@@ -947,15 +1107,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void chooseDockSlot() {
-        List<String> favourites = LauncherPreferences.favourites(this);
-        String[] labels = new String[favourites.size()];
-        for (int i = 0; i < labels.length; i++) {
-            String name = favourites.get(i);
-            for (AppAdapter.Entry entry : adapter.entries()) {
-                if (entry.pkg.equals(name)) { name = entry.label; break; }
-            }
-            labels[i] = getString(R.string.dock_slot, i + 1, name);
-        }
+        List<AppAdapter.Entry> entries = adapter.entries();
+        if (entries.isEmpty()) { Toast.makeText(this, R.string.apps_empty, Toast.LENGTH_SHORT).show(); return; }
+        String[] labels = new String[Math.min(COLUMNS, entries.size())];
+        for (int i = 0; i < labels.length; i++) labels[i] = getString(R.string.dock_slot, i + 1, entries.get(i).label);
         showMenu(getString(R.string.choose_slot), getString(R.string.choose_slot_description),
                 labels, null, this::showLauncherSettings, this::chooseDockApp);
     }
@@ -965,7 +1120,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         String[] labels = new String[entries.size()];
         for (int i = 0; i < labels.length; i++) labels[i] = entries.get(i).label;
         showMenu(getString(R.string.choose_app), null, labels, null, this::chooseDockSlot, index -> {
-            LauncherPreferences.setFavourite(this, slot, entries.get(index).pkg);
+            if (slot < LauncherPreferences.favourites(this).size()) {
+                LauncherPreferences.setFavourite(this, slot, entries.get(index).pkg);
+            }
+            List<AppAdapter.Entry> current = adapter.entries();
+            for (int from = 0; from < current.size(); from++) if (current.get(from).pkg.equals(entries.get(index).pkg)) {
+                adapter.move(from, Math.min(slot, current.size() - 1)); break;
+            }
             lastFocused = slot;
             adapter.reload(() -> grid.post(() -> focusTile(slot)));
         });
@@ -976,29 +1137,57 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     }
 
     private void chooseWallpaper() {
-        String[] names = getResources().getStringArray(R.array.wallpaper_names);
-        String[] values = new String[names.length];
-        android.content.res.TypedArray images = getResources().obtainTypedArray(R.array.wallpaper_images);
+        Dialog dialog = new Dialog(this);
+        LinearLayout content = panelContent(dialog, getString(R.string.wallpaper_title));
+        RecyclerView gallery = new RecyclerView(this);
+        int width = Math.min(dp(780), getResources().getDisplayMetrics().widthPixels - dp(36));
+        int columns = width >= dp(600) ? 3 : 2;
+        GridLayoutManager layout = new GridLayoutManager(this, columns);
+        gallery.setLayoutManager(layout);
+        gallery.setClipToPadding(false);
+        gallery.setPadding(dp(2), dp(2), dp(2), dp(2));
+        gallery.setItemAnimator(null);
         int selected = LauncherPreferences.wallpaper(this);
-        int[] modes = getResources().getIntArray(R.array.wallpaper_modes);
-        for (int i = 0; i < names.length; i++) {
-            values[i] = modes[i] >= WallpaperCatalog.AMBIENT ? getString(R.string.wallpaper_adaptive)
-                    : modes[i] == WallpaperCatalog.VIDEO ? getString(R.string.wallpaper_dynamic) : "";
-            if (modes[i] == WallpaperCatalog.VIDEO && VideoWallpaper.localFile(this, "wallpaper.mp4") != null) {
-                names[i] = getString(R.string.wallpaper_local);
+        android.widget.Button phone = new android.widget.Button(this);
+        phone.setText(R.string.wallpaper_upload);
+        phone.setOnClickListener(v -> { dialog.dismiss(); showPhoneSetup(); });
+        content.addView(phone);
+        android.widget.Button daily = new android.widget.Button(this);
+        daily.setText(R.string.daily_refresh);
+        daily.setOnClickListener(v -> { dialog.dismiss(); enableDaily(); });
+        content.addView(daily);
+        WallpaperAdapter wallpapers = new WallpaperAdapter(this, new WallpaperAdapter.Listener() {
+            @Override public void select(int index) {
+                dialog.dismiss(); LauncherPreferences.setWallpaper(MainActivity.this, index); loadWallpaper();
             }
-            if (i == selected) values[i] += "  ✓";
-        }
-        images.recycle();
-        showMenu(getString(R.string.wallpaper_title), null, names, values,
-                this::showLauncherSettings, index -> {
-            LauncherPreferences.setWallpaper(this, index);
-            updateVideoWallpaper();
-            loadWallpaper();
+            @Override public void selectSource(String id) {
+                dialog.dismiss();
+                if (id.startsWith("daily:") && !HomeOptions.flag(MainActivity.this, "daily_enabled", false)) { enableDaily(); return; }
+                media.select(id); loadWallpaper();
+            }
         });
+        gallery.setAdapter(wallpapers);
+        content.addView(gallery, new LinearLayout.LayoutParams(-1, 0, 1));
+        setPanelBack(dialog, this::showLauncherSettings);
+        showPanel(dialog);
+        if (dialog.getWindow() != null) dialog.getWindow().setLayout(width,
+                getResources().getDisplayMetrics().heightPixels - dp(36));
+        int position = Math.max(0, Math.min(wallpapers.getItemCount() - 1, selected));
+        layout.scrollToPosition(position);
+        gallery.getViewTreeObserver().addOnGlobalLayoutListener(
+                new android.view.ViewTreeObserver.OnGlobalLayoutListener() {
+                    @Override
+                    public void onGlobalLayout() {
+                        View tile = layout.findViewByPosition(position);
+                        if (tile == null) return;
+                        gallery.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                        tile.requestFocus();
+                    }
+                });
     }
 
     private void loadWallpaper() {
+        if (!media.selected().equals("legacy")) { loadManagedWallpaper(); return; }
         if (WallpaperCatalog.mode(this) >= WallpaperCatalog.AMBIENT) {
             wallpaperRequest++;
             updateVideoWallpaper();
@@ -1041,7 +1230,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 wallpaperReady = true;
                 updateVideoWallpaper();
                 wallpaperPalette = palette;
-                tintGlass(findViewById(R.id.topButtons), true);
+                updateHeaderColors(material);
                 dockDecoration.setWallpaper(material);
                 dockDecoration.setPalette(palette);
                 grid.invalidateItemDecorations();
@@ -1054,7 +1243,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         Bitmap material = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888);
         material.setPixels(new int[]{colors[0], colors[2], colors[1], colors[0]}, 0, 2, 0, 0, 2, 2);
         wallpaperPalette = WallpaperPalette.fromPixels(colors);
-        tintGlass(findViewById(R.id.topButtons), true);
+        updateHeaderColors(material);
         dockDecoration.setWallpaper(material);
         dockDecoration.setPalette(wallpaperPalette);
         grid.invalidateItemDecorations();
@@ -1064,10 +1253,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (adapter == null || grid.getParent() == null) return;
         int available = ((View) grid.getParent()).getWidth();
         if (available <= 0) return;
+        int columns = Math.min(COLUMNS, Math.max(1, adapter.getItemCount()));
+        GridLayoutManager layout = (GridLayoutManager) grid.getLayoutManager();
+        if (layout.getSpanCount() != columns) layout.setSpanCount(columns);
         float scale = Math.min(LauncherPreferences.dockPercent(this) / 100f,
-                Math.max(0.4f, (available - dp(48)) / (COLUMNS * 184f * density)));
+                Math.max(0.4f, (available - dp(48)) / (columns * 184f * density)));
         FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) grid.getLayoutParams();
-        int width = Math.min(available, dp(COLUMNS * 184f * scale + 48));
+        int width = Math.min(available, dp(columns * 184f * scale + 48));
         if (params.width != width) {
             params.width = width;
             params.gravity = Gravity.CENTER_HORIZONTAL;
@@ -1076,14 +1268,29 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         adapter.setTileScale(scale);
     }
 
-    private void tintGlass(View view, boolean header) {
+    private void updateHeaderColors(Bitmap material) {
+        int foreground = WallpaperMaterial.headerTextColor(material);
+        android.content.res.ColorStateList colors = new android.content.res.ColorStateList(
+                new int[][]{new int[]{android.R.attr.state_focused}, new int[]{}},
+                new int[]{0xFF18212B, foreground});
+        btnWeather.setTextColor(colors);
+        btnWeather.setCompoundDrawableTintList(colors);
+        btnControls.setCompoundDrawableTintList(colors);
+        TextView clock = findViewById(R.id.headerClock);
+        clock.setTextColor(foreground);
+        ((TextView) findViewById(R.id.largeClock)).setTextColor(foreground);
+        ((TextView) findViewById(R.id.largeDate)).setTextColor(foreground);
+        int shadow = foreground == 0xFF18212B ? 0x30FFFFFF : 0x80000000;
+        clock.setShadowLayer(dp(2), 0, dp(1), shadow);
+        btnWeather.setShadowLayer(dp(2), 0, dp(1), shadow);
+    }
+
+    private void tintPanel(View view) {
         Drawable background = view.getBackground().mutate();
         if (background instanceof LayerDrawable) {
             background = ((LayerDrawable) background).getDrawable(0);
         }
-        ((GradientDrawable) background).setColors(header
-                ? new int[]{wallpaperPalette.headerStart, wallpaperPalette.headerEnd}
-                : new int[]{wallpaperPalette.panelStart, wallpaperPalette.panelEnd});
+        ((GradientDrawable) background).setColors(new int[]{wallpaperPalette.panelStart, wallpaperPalette.panelEnd});
     }
 
     private void openSystemSettings(boolean network) {
@@ -1104,13 +1311,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onBackPressed() {
-        if (HomeIntegration.enabled(this)) focusTile(0);
-        else finish();
+        if (wallpaperPeek != null && wallpaperPeek.isShowing()) { wallpaperPeek.dismiss(true); return; }
+        if (movingTile >= 0) { movingTile = -1; Toast.makeText(this, R.string.move_done, Toast.LENGTH_SHORT).show(); return; }
+        if (lastFocused >= COLUMNS) { focusTile(0); return; }
+        if (HomeOptions.flag(this, "back_saver", false)) showScreensaver(false);
+        else focusTile(0);
     }
 
     @Override
     public void onTileFocused(int position, View card) {
         lastFocused = position;
+        updateLargeClock();
+        if (media.selected().equals("auto")) updateAppBackground(position);
         View item = (View) card.getParent();
         if (position < COLUMNS) {
             int decoratedTop = item.getTop() - dp(10);
@@ -1127,9 +1339,27 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     public boolean onTileVerticalKey(int position, int keyCode) {
         int count = adapter.getItemCount();
+        if (movingTile >= 0) {
+            int delta = keyCode == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ? 1
+                    : keyCode == KeyEvent.KEYCODE_DPAD_UP ? -COLUMNS : COLUMNS;
+            int target = Math.max(0, Math.min(count - 1, movingTile + delta));
+            adapter.move(movingTile, target); movingTile = target;
+            grid.post(() -> { if (movingTile == target) focusTile(target); }); return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+            if (position % COLUMNS != 0) focusTile(position - 1);
+            return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            if (position % COLUMNS != COLUMNS - 1 && position + 1 < count) focusTile(position + 1);
+            return true;
+        }
         int target;
         if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
-            if (position < COLUMNS) return false;          // dock row: let focus move to the top bar
+            if (position < COLUMNS) {
+                btnControls.requestFocus();
+                return true;
+            }
             target = position - COLUMNS;
         } else {
             int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;
@@ -1140,28 +1370,32 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         return true;
     }
 
+    private boolean focusVisibleTile(int position) {
+        RecyclerView.ViewHolder holder = grid.findViewHolderForAdapterPosition(position);
+        if (holder == null) return false;
+        View target = holder.itemView.findViewById(R.id.card);
+        if (target.hasFocus()) onTileFocused(position, target);
+        else target.requestFocusFromTouch();
+        return target.hasFocus();
+    }
+
     private void focusTile(int position) {
+        int request = ++focusRequest;
         if (adapter.getItemCount() == 0) return;
-        final int pos = Math.max(0, Math.min(position, adapter.getItemCount() - 1));
-        RecyclerView.ViewHolder vh = grid.findViewHolderForAdapterPosition(pos);
-        if (vh != null) {
-            View target = vh.itemView.findViewById(R.id.card);
-            if (target.hasFocus()) onTileFocused(pos, target);
-            else target.requestFocus();
-            return;
-        }
-        // Not laid out yet: scroll there, then focus once the scroll settles.
-        grid.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
-                if (newState != RecyclerView.SCROLL_STATE_IDLE) return;
-                rv.removeOnScrollListener(this);
-                RecyclerView.ViewHolder h = rv.findViewHolderForAdapterPosition(pos);
-                View target = h != null ? h.itemView.findViewById(R.id.card) : rv.getChildAt(0);
-                if (target != null) target.requestFocus();
+        int target = Math.max(0, Math.min(position, adapter.getItemCount() - 1));
+        if (focusVisibleTile(target)) return;
+        RecyclerView.OnScrollListener pending = new RecyclerView.OnScrollListener() {
+            @Override public void onScrollStateChanged(@NonNull RecyclerView view, int state) {
+                if (request != focusRequest) { view.removeOnScrollListener(this); return; }
+                if (state == RecyclerView.SCROLL_STATE_IDLE && focusVisibleTile(target)) view.removeOnScrollListener(this);
             }
+        };
+        grid.addOnScrollListener(pending);
+        grid.smoothScrollToPosition(target);
+        // An already-visible target can be waiting for binding without generating a scroll-idle event.
+        grid.postOnAnimation(() -> {
+            if (request != focusRequest || focusVisibleTile(target)) grid.removeOnScrollListener(pending);
         });
-        grid.smoothScrollToPosition(pos);
     }
 
     // ---- top bar ---------------------------------------------------------------------------------
@@ -1182,8 +1416,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             }
         } catch (Exception ignored) {
         }
-        btnWifi.setContentDescription(text);
-        btnWifi.setAlpha(text.equals(getString(R.string.offline)) ? 0.45f : 1f);
+        networkLabel = text;
     }
 
     private void open(Intent i) {
@@ -1195,14 +1428,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         }
     }
 
-    /** Dropdown menu under the Inputs pill: HDMI ports (with connection state), AV and Live TV. */
+    /** Input chooser anchored to Control Center: HDMI ports, AV and Live TV. */
     private void showInputs() {
-        View anchor = findViewById(R.id.btnInputs);
+        View anchor = btnControls;
         View panel = getLayoutInflater().inflate(R.layout.popup_inputs, root, false);
-        tintGlass(panel, false);
+        tintPanel(panel);
         LinearLayout rows = panel.findViewById(R.id.rows);
 
-        // Compact: as wide as the Inputs pill (a touch wider so "HDMI 1" fits), hanging right below it.
+        // Align the chooser with the right edge of Control Center.
         int width = Math.max(anchor.getWidth(), (int) (150 * density));
         final PopupWindow popup = new PopupWindow(panel, width, ViewGroup.LayoutParams.WRAP_CONTENT, true);
         popup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));   // needed for Back to dismiss
@@ -1213,7 +1446,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         TvInputManager tim = (TvInputManager) getSystemService(TV_INPUT_SERVICE);
         boolean sawNonHdmi = false;
         if (tim != null) {
-            List<TvInputInfo> inputs = new ArrayList<>(tim.getTvInputList());
+            List<TvInputInfo> inputs = new ArrayList<>(InputSources.selectable(this));
             // HDMI ports first in port order, then AV and the rest.
             Collections.sort(inputs, (a, b) -> {
                 boolean ha = a.getType() == TvInputInfo.TYPE_HDMI, hb = b.getType() == TvInputInfo.TYPE_HDMI;
@@ -1221,16 +1454,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
                 return String.valueOf(a.loadLabel(this)).compareToIgnoreCase(String.valueOf(b.loadLabel(this)));
             });
             for (TvInputInfo info : inputs) {
-                if (!info.isPassthroughInput()) continue;
-                CharSequence l = info.loadLabel(this);
-                String label = l == null ? info.getId() : l.toString();
+                String label = InputSources.label(this, info);
                 boolean hdmi = info.getType() == TvInputInfo.TYPE_HDMI;
                 if (hdmi && !label.toUpperCase(java.util.Locale.ROOT).contains("HDMI")) label = "HDMI " + label;
                 final String id = info.getId();
-                int state = tim.getInputState(id);
+                int state = info.getType() == TvInputInfo.TYPE_TUNER ? -1 : tim.getInputState(id);
                 if (!hdmi && rows.getChildCount() > 0 && !sawNonHdmi) addSeparator(rows);
                 if (!hdmi) sawNonHdmi = true;
-                addInputRow(rows, popup, hdmi ? R.drawable.ic_input : R.drawable.ic_av, label, state,
+                addInputRow(rows, popup, hdmi ? R.drawable.ic_input : info.getType() == TvInputInfo.TYPE_TUNER ? R.drawable.ic_livetv : R.drawable.ic_av, label, state,
                         () -> {
                             Intent intent = TvInputRouting.create(this, info);
                             if (intent != null) open(intent);
@@ -1255,7 +1486,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         panel.setTranslationY(-8 * density);
         activeInputs = popup;
         popup.setOnDismissListener(() -> { if (activeInputs == popup) activeInputs = null; });
-        popup.showAsDropDown(anchor, 0, (int) (10 * density), Gravity.START);
+        popup.showAsDropDown(anchor, 0, (int) (10 * density), Gravity.END);
         panel.animate().alpha(1f).scaleY(1f).translationY(0f).setDuration(220)
                 .setInterpolator(new android.view.animation.DecelerateInterpolator(1.6f)).start();
         rows.getChildAt(0).requestFocus();
@@ -1294,4 +1525,363 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         });
         rows.addView(row);
     }
+    private void loadManagedWallpaper() {
+        int request = ++wallpaperRequest;
+        String source = media.selected();
+        featureWorker.execute(() -> {
+            Bitmap bitmap = media.picture(source, 1920, 1080);
+            Bitmap material = bitmap == null ? null : WallpaperMaterial.blur(bitmap);
+            handler.post(() -> {
+                if (isDestroyed() || request != wallpaperRequest) {
+                    if (bitmap != null) bitmap.recycle();
+                    if (material != null) material.recycle();
+                    return;
+                }
+                ((ImageView) findViewById(R.id.wallpaper)).setImageBitmap(bitmap);
+                wallpaperReady = true;
+                updateVideoWallpaper();
+                wallpaperPalette = WallpaperMaterial.palette(material);
+                updateHeaderColors(material);
+                dockDecoration.setWallpaper(material); dockDecoration.setPalette(wallpaperPalette);
+                grid.invalidateItemDecorations();
+                if (source.equals("auto")) updateAppBackground(lastFocused);
+            });
+        });
+    }
+
+    private void updateAppBackground(int position) {
+        List<AppAdapter.Entry> entries = adapter.entries();
+        if (position < 0 || position >= entries.size()) return;
+        Drawable artwork = entries.get(position).banner;
+        if (artwork == null) return;
+        // The tile is already cached. Sample a tiny raster only when focus changes.
+        Bitmap sample = Bitmap.createBitmap(32, 20, Bitmap.Config.ARGB_8888);
+        Rect old = artwork.copyBounds(); artwork.setBounds(0, 0, 32, 20);
+        artwork.draw(new android.graphics.Canvas(sample)); artwork.setBounds(old);
+        int color = AppArtwork.dominant(sample); sample.recycle();
+        GradientDrawable background = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{color, 0xFF101724});
+        ((ImageView) findViewById(R.id.wallpaper)).setImageDrawable(background);
+        Bitmap material = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888);
+        material.eraseColor(color);
+        wallpaperPalette = WallpaperPalette.fromPixels(new int[]{color, 0xFF101724});
+        updateHeaderColors(material); dockDecoration.setWallpaper(material); dockDecoration.setPalette(wallpaperPalette);
+        grid.invalidateItemDecorations();
+    }
+
+    private void enableDaily() {
+        boolean enabled = HomeOptions.flag(this, "daily_enabled", false);
+        String[] actions = enabled ? new String[]{getString(R.string.daily_refresh), getString(R.string.home_off), getString(R.string.cancel)}
+                : new String[]{getString(R.string.home_on), getString(R.string.cancel)};
+        showMenu(getString(R.string.daily_latest), getString(R.string.daily_description),
+                actions, null, this::chooseWallpaper, index -> {
+                    if (enabled && index == 1) { HomeOptions.set(this, "daily_enabled", false); chooseWallpaper(); return; }
+                    if (index != 0) { chooseWallpaper(); return; }
+                    HomeOptions.set(this, "daily_enabled", true);
+                    media.select("daily:latest"); loadWallpaper(); chooseWallpaper();
+                    Dialog picker = activePanel;
+                    Toast.makeText(this, R.string.daily_loading, Toast.LENGTH_SHORT).show();
+                    featureWorker.execute(() -> {
+                        boolean loaded;
+                        try { media.refreshDaily(true); loaded = true; } catch (Exception ignored) { loaded = false; }
+                        boolean result = loaded;
+                        handler.post(() -> {
+                            if (isDestroyed() || !HomeOptions.flag(this, "daily_enabled", false)) return;
+                            if (result && media.selected().startsWith("daily:")) loadWallpaper();
+                            else if (!result) Toast.makeText(this, R.string.daily_failed, Toast.LENGTH_LONG).show();
+                            if (activePanel == picker) { picker.dismiss(); chooseWallpaper(); }
+                        });
+                    });
+                });
+    }
+
+    @Override public boolean onTileActivate(int position) {
+        if (movingTile < 0) return false;
+        // Remote confirmation arrives through dispatchKeyEvent; clicks can choose another destination.
+        if (position >= 0 && position != movingTile) { adapter.move(movingTile, position); movingTile = position; }
+        int finished = movingTile;
+        movingTile = -1;
+        grid.post(() -> focusTile(finished));
+        Toast.makeText(this, R.string.move_done, Toast.LENGTH_SHORT).show();
+        return true;
+    }
+
+    @Override public void onTileAction(int position) {
+        protect(() -> {
+            List<AppAdapter.Entry> entries = adapter.entries();
+            if (position < 0 || position >= entries.size()) return;
+            AppAdapter.Entry entry = entries.get(position);
+            if (entry.input != null) {
+                showMenu(entry.label, null, new String[]{getString(R.string.move_app), getString(R.string.input_pin)},
+                        null, null, index -> {
+                            if (index == 0) startMove(position);
+                            else { HomeOptions.pinInput(this, entry.input.getId(), false); adapter.reload(() -> focusTile(0)); }
+                        });
+                return;
+            }
+            showMenu(entry.label, null, new String[]{getString(R.string.move_app), getString(R.string.hide_app),
+                    getString(R.string.app_info), getString(R.string.uninstall_app), getString(R.string.reset_icon)},
+                    null, null, index -> {
+                        if (index == 0) startMove(position);
+                        else if (index == 1) {
+                            LauncherPreferences.setAppHidden(this, entry.pkg, true);
+                            adapter.reload(() -> focusTile(Math.max(0, position - 1)));
+                        } else if (index == 2) open(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + entry.pkg)));
+                        else if (index == 3) open(new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + entry.pkg)));
+                        else { media.resetIcon(entry.pkg); adapter.reload(() -> focusTile(position)); }
+                    });
+        });
+    }
+
+    private void startMove(int position) {
+        movingTile = position;
+        grid.postOnAnimation(() -> { if (movingTile >= 0) focusTile(movingTile); });
+        Toast.makeText(this, R.string.move_hint, Toast.LENGTH_LONG).show();
+    }
+
+    private void showInputSettings() {
+        List<TvInputInfo> inputs = InputSources.selectable(this);
+        String[] labels = new String[inputs.size() + 2];
+        String[] values = new String[labels.length];
+        labels[0] = getString(R.string.input_boot); labels[1] = getString(R.string.input_wake);
+        values[1] = onOff(HomeOptions.flag(this, "wake_input", false));
+        for (int i = 0; i < inputs.size(); i++) {
+            labels[i + 2] = InputSources.label(this, inputs.get(i));
+            values[i + 2] = onOff(HomeOptions.pinnedInputs(this).contains(inputs.get(i).getId()));
+        }
+        showMenu(getString(R.string.input_settings), null, labels, values, this::showLauncherSettings, index -> {
+            if (index == 0) {
+                List<String> sources = new ArrayList<>(); sources.add(getString(R.string.input_home));
+                for (TvInputInfo input : inputs) sources.add(InputSources.label(this, input));
+                showMenu(getString(R.string.input_boot), null, sources.toArray(new String[0]), null, this::showInputSettings, choice -> {
+                    HomeOptions.set(this, "boot_source", choice == 0 ? "" : inputs.get(choice - 1).getId());
+                    HomeOptions.prefs(this).edit().putInt("input_boot_count", Settings.Global.getInt(getContentResolver(), Settings.Global.BOOT_COUNT, -1)).apply();
+                    showInputSettings();
+                });
+            } else if (index == 1) { HomeOptions.set(this, "wake_input", !HomeOptions.flag(this, "wake_input", false)); showInputSettings(); }
+            else {
+                String id = inputs.get(index - 2).getId();
+                HomeOptions.pinInput(this, id, !HomeOptions.pinnedInputs(this).contains(id));
+                adapter.reload(() -> updateDockSize()); showInputSettings();
+            }
+        });
+    }
+
+    private void showVolume() {
+        android.media.AudioManager audio = getSystemService(android.media.AudioManager.class);
+        if (audio == null || audio.isVolumeFixed()) {
+            showMenu(getString(R.string.volume_title), getString(R.string.volume_fixed_description),
+                    new String[]{getString(R.string.settings)}, null, this::showControlCenter,
+                    ignored -> openSystemSettings(false));
+            return;
+        }
+        Dialog dialog = new Dialog(this);
+        LinearLayout content = panelContent(dialog, getString(R.string.volume_title));
+        android.widget.SeekBar slider = new android.widget.SeekBar(this);
+        slider.setContentDescription(getString(R.string.volume_title));
+        slider.setMax(audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC));
+        slider.setProgress(audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC));
+        content.addView(slider, new LinearLayout.LayoutParams(-1, dp(56)));
+        TextView value = new TextView(this); value.setTextColor(Color.WHITE); value.setTextSize(20);
+        content.addView(value);
+        slider.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar view, int progress, boolean fromUser) {
+                if (fromUser) audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, progress, 0);
+                value.setText(String.valueOf(progress));
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar view) { }
+            @Override public void onStopTrackingTouch(android.widget.SeekBar view) { }
+        });
+        Runnable sync = new Runnable() {
+            @Override public void run() {
+                if (activePanel != dialog || !dialog.isShowing()) return;
+                int current = audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC);
+                slider.setProgress(current); value.setText(String.valueOf(current));
+                handler.postDelayed(this, 250);
+            }
+        };
+        setPanelBack(dialog, this::showControlCenter); showPanel(dialog); slider.requestFocus(); handler.post(sync);
+    }
+
+    private void showBrightness() {
+        if (!TvSystemPreferences.supportsBrightness(this)) {
+            showMenu(getString(R.string.brightness_title), getString(R.string.brightness_fallback),
+                    new String[]{getString(R.string.picture_settings)}, null, this::showControlCenter,
+                    ignored -> { Intent intent = new Intent(Settings.ACTION_DISPLAY_SETTINGS);
+                        if (intent.resolveActivity(getPackageManager()) != null) open(intent); else openSystemSettings(false); });
+            return;
+        }
+        Dialog dialog = new Dialog(this);
+        LinearLayout content = panelContent(dialog, getString(R.string.brightness_title));
+        android.widget.SeekBar slider = new android.widget.SeekBar(this); slider.setMax(255); slider.setMin(1);
+        slider.setContentDescription(getString(R.string.brightness_title));
+        slider.setProgress(TvSystemPreferences.brightness(this));
+        slider.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(android.widget.SeekBar bar, int value, boolean fromUser) {
+                if (!fromUser) return;
+                if (!TvSystemPreferences.setBrightness(MainActivity.this, value)) {
+                    bar.setEnabled(false);
+                    Toast.makeText(MainActivity.this, R.string.brightness_fallback, Toast.LENGTH_LONG).show();
+                }
+            }
+            @Override public void onStartTrackingTouch(android.widget.SeekBar bar) { }
+            @Override public void onStopTrackingTouch(android.widget.SeekBar bar) { }
+        });
+        content.addView(slider, new LinearLayout.LayoutParams(-1, dp(56)));
+        setPanelBack(dialog, this::showControlCenter); showPanel(dialog); slider.requestFocus();
+    }
+
+    private void protect(Runnable action) {
+        if (!ParentalLock.locked(this)) { action.run(); return; }
+        showPin(getString(R.string.pin_enter), pin -> {
+            featureWorker.execute(() -> {
+                boolean accepted = ParentalLock.verify(this, pin);
+                handler.post(() -> {
+                    if (isDestroyed()) return;
+                    if (accepted) action.run();
+                    else { Toast.makeText(this, R.string.pin_error, Toast.LENGTH_SHORT).show(); protect(action); }
+                });
+            });
+        });
+    }
+
+    private void showPin(String title, java.util.function.Consumer<String> submit) {
+        Dialog dialog = new Dialog(this);
+        LinearLayout content = panelContent(dialog, title);
+        android.widget.EditText input = new android.widget.EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(8)});
+        input.setTextColor(Color.WHITE);
+        content.addView(input, new LinearLayout.LayoutParams(-1, dp(48)));
+        android.widget.GridLayout pad = new android.widget.GridLayout(this); pad.setColumnCount(3);
+        String[] digits = {"1", "2", "3", "4", "5", "6", "7", "8", "9", getString(R.string.pin_delete), "0", getString(R.string.pin_submit)};
+        for (int i = 0; i < digits.length; i++) {
+            final int index = i;
+            android.widget.Button button = new android.widget.Button(this); button.setText(digits[i]);
+            button.setOnClickListener(v -> {
+                if (index == 9) {
+                    if (input.length() > 0) input.getText().delete(input.length() - 1, input.length());
+                } else if (index == 11) {
+                    String pin = input.getText().toString();
+                    if (!ParentalLock.valid(pin)) { input.setError(getString(R.string.pin_invalid)); return; }
+                    dialog.dismiss(); submit.accept(pin);
+                } else input.append(digits[index]);
+            });
+            android.widget.GridLayout.LayoutParams params = new android.widget.GridLayout.LayoutParams();
+            params.width = dp(88); params.height = dp(48); pad.addView(button, params);
+        }
+        content.addView(pad);
+        setPanelBack(dialog, null); showPanel(dialog); pad.getChildAt(0).requestFocus();
+    }
+
+    private void showPinSettings() {
+        boolean enabled = ParentalLock.enabled(this);
+        showMenu(getString(R.string.pin_title), getString(R.string.pin_description),
+                new String[]{getString(enabled ? R.string.home_off : R.string.home_on)}, null, this::showLauncherSettings, ignored -> {
+                    if (enabled) { ParentalLock.disable(this); showLauncherSettings(); return; }
+                    showPin(getString(R.string.pin_create), first -> showPin(getString(R.string.pin_confirm), second -> {
+                        if (!first.equals(second)) { Toast.makeText(this, R.string.pin_mismatch, Toast.LENGTH_SHORT).show(); showPinSettings(); return; }
+                        featureWorker.execute(() -> {
+                            try { ParentalLock.set(this, first); } catch (Exception ignoredError) { }
+                            handler.post(this::showLauncherSettings);
+                        });
+                    }));
+                });
+    }
+
+    private void showRecoveryOptions() {
+        showMenu(getString(R.string.recovery_title), null,
+                new String[]{getString(R.string.revival_title), getString(R.string.keep_adb)},
+                new String[]{onOff(HomeOptions.flag(this, "notification_revival", false)), onOff(RecoveryOptions.keepAdb(this))},
+                this::showLauncherSettings, index -> {
+                    if (index == 0) showMenu(getString(R.string.revival_title), getString(R.string.revival_description),
+                            new String[]{getString(R.string.home_on), getString(R.string.home_off)}, null, this::showRecoveryOptions, choice -> {
+                                RevivalListener.setEnabled(this, choice == 0);
+                                if (choice == 0) open(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)); else showRecoveryOptions();
+                            });
+                    else showMenu(getString(R.string.keep_adb), getString(R.string.keep_adb_description),
+                            new String[]{getString(R.string.home_on), getString(R.string.home_off)}, null, this::showRecoveryOptions, choice -> {
+                                if (!RecoveryOptions.setKeepAdb(this, choice == 0)) Toast.makeText(this,
+                                        HomeIntegration.canRecover(this) ? R.string.system_preferences_failed : R.string.system_preferences_permission,
+                                        Toast.LENGTH_LONG).show();
+                                showRecoveryOptions();
+                            });
+                });
+    }
+
+    private String lanAddress() {
+        ConnectivityManager manager = getSystemService(ConnectivityManager.class);
+        if (manager == null) return null;
+        for (Network network : manager.getAllNetworks()) {
+            NetworkCapabilities caps = manager.getNetworkCapabilities(network);
+            if (caps == null || !(caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))) continue;
+            android.net.LinkProperties links = manager.getLinkProperties(network);
+            if (links == null) continue;
+            for (android.net.LinkAddress link : links.getLinkAddresses()) {
+                java.net.InetAddress address = link.getAddress();
+                if (address instanceof java.net.Inet4Address && address.isSiteLocalAddress()) return address.getHostAddress();
+            }
+        }
+        return null;
+    }
+
+    private void stopPhone() {
+        if (phoneServer == null) return;
+        phoneServer.stop(); phoneServer = null;
+    }
+
+    private void showPhoneSetup() {
+        stopPhone();
+        String address = lanAddress();
+        if (address == null) { Toast.makeText(this, R.string.phone_unavailable, Toast.LENGTH_LONG).show(); return; }
+        phoneApps = adapter.entries();
+        PhoneServer server = new PhoneServer(this, address, new PhoneServer.Host() {
+            @Override public List<AppAdapter.Entry> apps() { return phoneApps; }
+            @Override public void changed() { if (!isDestroyed()) applyOptions(); }
+            @Override public WeatherController weather() { return weather; }
+            @Override public void main(Runnable action) { handler.post(action); }
+        });
+        try { server.start(5000, true); phoneServer = server; }
+        catch (java.io.IOException error) { Toast.makeText(this, R.string.phone_start_failed, Toast.LENGTH_LONG).show(); return; }
+        Dialog dialog = new Dialog(this);
+        LinearLayout content = panelContent(dialog, getString(R.string.phone_setup));
+        TextView description = new TextView(this); description.setText(R.string.phone_description);
+        description.setTextColor(Color.WHITE); description.setTextSize(14); content.addView(description);
+        try {
+            com.google.zxing.common.BitMatrix matrix = new com.google.zxing.qrcode.QRCodeWriter().encode(server.url(),
+                    com.google.zxing.BarcodeFormat.QR_CODE, 320, 320);
+            Bitmap qr = Bitmap.createBitmap(320, 320, Bitmap.Config.ARGB_8888);
+            for (int y = 0; y < 320; y++) for (int x = 0; x < 320; x++) qr.setPixel(x, y, matrix.get(x, y) ? Color.BLACK : Color.WHITE);
+            ImageView image = new ImageView(this); image.setImageBitmap(qr);
+            LinearLayout.LayoutParams imageParams = new LinearLayout.LayoutParams(dp(192), dp(192));
+            imageParams.gravity = Gravity.CENTER_HORIZONTAL; imageParams.topMargin = dp(12);
+            content.addView(image, imageParams);
+        } catch (com.google.zxing.WriterException ignored) { }
+        TextView link = new TextView(this); link.setText(server.url()); link.setTextColor(Color.WHITE); link.setTextSize(12);
+        link.setPadding(0, dp(12), 0, 0); content.addView(link);
+        setPanelBack(dialog, this::showControlCenter); showPanel(dialog);
+        dialog.setOnDismissListener(ignored -> { if (activePanel == dialog) activePanel = null; stopPhone(); });
+        handler.postDelayed(() -> { if (phoneServer == server) { dialog.dismiss(); stopPhone(); } }, 10 * 60_000L);
+    }
+
+    private void showUpdates() {
+        showMenu(getString(R.string.update_title), getString(R.string.update_checking), new String[0], null,
+                this::showLauncherSettings, ignored -> { });
+        Dialog pending = activePanel;
+        featureWorker.execute(() -> {
+            String result = ReleaseUpdates.fetch(this, true);
+            handler.post(() -> {
+                if (isDestroyed() || activePanel != pending) return;
+                pending.dismiss();
+                String current;
+                try { current = getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+                catch (android.content.pm.PackageManager.NameNotFoundException ignored) { current = ""; }
+                String text = getString(R.string.update_current, current) + "\n" + (result == null ? getString(R.string.update_failed) : getString(R.string.update_latest, result));
+                showMenu(getString(R.string.update_title), text + "\n\n" + getString(R.string.update_description),
+                        new String[]{getString(R.string.update_open)}, null, this::showLauncherSettings,
+                        ignored -> open(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/sogud/banana-tv/releases"))));
+            });
+        });
+    }
+
 }

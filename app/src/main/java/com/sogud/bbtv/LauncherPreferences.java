@@ -4,7 +4,7 @@ import android.content.Context;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Four ordered slots, stored locally; no account or remote configuration. */
+/** Legacy favourites seed the first tile order; existing preference keys remain upgrade-compatible. */
 final class LauncherPreferences {
     private LauncherPreferences() {}
 
@@ -66,7 +66,7 @@ final class LauncherPreferences {
     }
 
     static void setWallpaper(Context context, int index) {
-        context.getSharedPreferences("home", Context.MODE_PRIVATE).edit().putInt("wallpaper", index).apply();
+        context.getSharedPreferences("home", Context.MODE_PRIVATE).edit().putInt("wallpaper", index).putString("wallpaper_source", "legacy").apply();
     }
 
     static int screensaverMinutes(Context context) {

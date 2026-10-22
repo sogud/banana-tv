@@ -19,3 +19,7 @@ Banana TV adds Chinese settings, an editable persistent dock, static/video wallp
 - Installed app icons: read from apps on the TV at runtime, not bundled in this repository.
 
 The public package excludes the earlier private illustration collection and any personal video installed separately on a TV. They are not licensed by this project's MIT terms.
+
+## Aerial
+
+[Aerial](https://github.com/pengchujin/aerial-tv), commit `9e353aa9aec9277521bade4894c7efe2d261e953`, copyright 2026 pengchujin (MIT). Banana TV reimplements its launcher features in Java and Android Views and adapts its gradient palettes, aerial catalogue and bounded streaming-cache design. The films are streamed from Apple; they are not included in the APK and are not covered by the code license.

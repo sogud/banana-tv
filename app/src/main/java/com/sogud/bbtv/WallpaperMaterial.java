@@ -3,8 +3,25 @@ package com.sogud.bbtv;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 
-/** A small cached wallpaper blur. Called only by the background wallpaper loader. */
+/** Cached wallpaper material; blur work stays on the background loader. */
 final class WallpaperMaterial {
+    /** Sample the header's part of the cached blur, rather than the entire photograph. */
+    static int headerTextColor(Bitmap material) {
+        if (material == null) return 0xFFF8FAFC;
+        long brightness = 0;
+        for (int y = 0; y < 4; y++) {
+            for (int x = 0; x < 12; x++) {
+                int sampleX = Math.min(material.getWidth() - 1,
+                        material.getWidth() * (70 + x * 2) / 100);
+                int sampleY = Math.min(material.getHeight() - 1,
+                        material.getHeight() * (4 + y * 3) / 100);
+                int color = material.getPixel(sampleX, sampleY);
+                brightness += Color.red(color) * 299 + Color.green(color) * 587 + Color.blue(color) * 114;
+            }
+        }
+        return brightness / 48_000 > 150 ? 0xFF18212B : 0xFFF8FAFC;
+    }
+
     static WallpaperPalette palette(Bitmap material) {
         if (material == null) return WallpaperPalette.DEFAULT;
         int[] samples = new int[16 * 9];

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Banana TV</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#11151d;color:#f5f7fa}body{max-width:760px;margin:0 auto;padding:28px 20px 60px}h1{font-size:28px;letter-spacing:-1px}h2{font-size:19px;margin-top:36px}p,small{color:#aeb9c9;line-height:1.6}button,select,input{font:inherit;border:1px solid #465166;background:#252d3b;color:inherit;border-radius:12px;padding:12px;max-width:100%;margin:4px 0}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #99b9ff}label{display:block;margin:16px 0}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.tile{padding:0;overflow:hidden;text-align:left;background:#202735}.tile img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}.tile span{display:block;padding:10px;font-size:14px}.selected{outline:2px solid #a9c6ff}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.danger{color:#ffb4b4}#status{position:sticky;top:0;background:#11151de8;padding:12px 0;min-height:24px}input[type=file]{font-size:13px}a{color:#aec8ff}
+</style>
+<h1>Banana TV</h1><p>与电视连接的临时配置页。请在可信的家庭网络中使用；配对十分钟后到期。</p>
+<div id="status" role="status" aria-live="polite"></div>
+<h2>壁纸</h2><div class="row"><button id="daily">使用 Bing 每日图片</button><input type="file" id="photo" accept="image/jpeg,image/png,image/webp" aria-label="上传壁纸"></div><small>支持 JPG、PNG、WebP，每张最多 20 MB，最多保存 50 张。上传后自动设为壁纸，也可点选下方图片切换。图片保存在电视本机，并移除原始元数据。</small><div id="wallpapers" class="grid"></div>
+<h2>屏幕保护程序</h2><select id="screensaver" aria-label="屏幕保护程序"><option value="wallpaper">跟随当前壁纸</option><option value="aerial">航拍视频 · 在线</option><option value="photos">照片轮播</option><option value="clock">时钟</option></select><p>航拍从 Apple CDN 串流，失败时使用本地背景。左右方向键切换视频。</p>
+<h2>外观</h2><label>首页布局 <select id="layout"><option value="dock">极简 Dock</option><option value="grid">五列网格</option></select></label><label>应用名称 <select id="names"><option value="hidden">隐藏</option><option value="focused">仅选中时</option><option value="all">始终显示</option></select></label><label>焦点样式 <select id="focus"><option value="standard">标准</option><option value="contrast">高对比度描边</option></select></label>
+<h2>应用图标</h2><select id="app" aria-label="选择应用"></select><div class="row"><input type="file" id="icon" accept="image/jpeg,image/png,image/webp" aria-label="上传应用图标"><button id="reset">还原图标</button></div>
+<h2>天气</h2><p>自动位置通过公网 IP 推测城市，并向天气服务发送粗略坐标。可以手动指定城市。</p><div class="row"><input id="city" maxlength="100" placeholder="城市名称" aria-label="天气城市"><button id="setCity">设置城市</button><button id="auto">自动位置</button><button id="off">关闭天气</button></div>
+<script>
+const base=location.pathname.replace(/\/$/,'');
+const $=id=>document.getElementById(id);
+let state;
+async function request(path,data){
+  const options=data?{method:'POST',body:data}:{};
+  const response=await fetch(base+path,options);
+  if(!response.ok)throw Error(response.status===410?'配对已到期，请在电视上重新打开手机配置。':'未能完成，请检查图片或网络后重试。');
+  return response.json();
+}
+async function change(path,values){
+  $('status').textContent='正在保存…';
+  try{await request(path,new URLSearchParams(values));await refresh();$('status').textContent='已保存';}
+  catch(error){$('status').textContent=error.message;}
+}
+async function upload(input,path,extra){
+  const file=input.files[0];if(!file)return;
+  if(file.size>20*1024*1024){$('status').textContent='图片不能超过 20 MB';return;}
+  const body=new FormData();body.set('file',file);if(extra)body.set('app',extra);
+  $('status').textContent='正在上传…';
+  try{await request(path,body);input.value='';await refresh();$('status').textContent=path==='/api/upload'?'已上传并设为壁纸':'已保存';}
+  catch(error){$('status').textContent=error.message;}
+}
+async function refresh(){
+  state=await request('/api/state');
+  for(const key of ['screensaver','layout','names','focus'])$(key).value=state[key];
+  const current=$('app').value;$('app').replaceChildren();
+  for(const app of state.apps){const option=document.createElement('option');option.value=app.key;option.textContent=app.label+(app.custom?' · 自定':'');$('app').append(option);}
+  if(current)$('app').value=current;
+  $('wallpapers').replaceChildren();
+  for(const item of state.wallpapers){
+    const wrap=document.createElement('div');
+    const button=document.createElement('button');button.className='tile'+(item.id===state.selected?' selected':'');button.style.width='100%';
+    const image=document.createElement('img');image.loading='lazy';image.alt='';image.src=base+'/api/thumb?id='+encodeURIComponent(item.id);
+    const text=document.createElement('span');text.textContent=item.title;button.append(image,text);button.onclick=()=>change('/api/wallpaper',{value:item.id});wrap.append(button);
+    if(item.caption){const caption=document.createElement('small');caption.textContent=item.caption;wrap.append(caption);}
+    if(item.id.startsWith('photo:')){const remove=document.createElement('button');remove.textContent='删除照片';remove.className='danger';remove.onclick=()=>change('/api/delete',{value:item.id});wrap.append(remove);}
+    $('wallpapers').append(wrap);
+  }
+}
+for(const [id,key] of [['screensaver','screensaver_mode'],['layout','layout'],['names','name_style'],['focus','focus_style']])$(id).onchange=()=>change('/api/setting',{key,value:$(id).value});
+$('photo').onchange=()=>upload($('photo'),'/api/upload');$('icon').onchange=()=>upload($('icon'),'/api/icon',$('app').value);
+$('reset').onclick=()=>change('/api/icon/reset',{app:$('app').value});$('daily').onclick=()=>change('/api/daily',{});
+$('setCity').onclick=()=>change('/api/weather/city',{value:$('city').value});$('auto').onclick=()=>change('/api/weather/auto',{});$('off').onclick=()=>change('/api/weather/off',{});
+refresh().catch(error=>$('status').textContent=error.message);
+</script></html>

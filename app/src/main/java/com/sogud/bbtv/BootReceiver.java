@@ -12,7 +12,7 @@ public class BootReceiver extends BroadcastReceiver {
         if (!Intent.ACTION_BOOT_COMPLETED.equals(action)
                 && !Intent.ACTION_USER_UNLOCKED.equals(action)
                 && !Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)) return;
-        if (HomeIntegration.needsService(context)) HomeIntegration.syncRecovery(context);
+        if (HomeIntegration.needsService(context) || RecoveryOptions.keepAdb(context)) HomeIntegration.syncRecovery(context);
         if (HomeIntegration.enabled(context)) {
             HomeIntegration.openHome(context);
         }

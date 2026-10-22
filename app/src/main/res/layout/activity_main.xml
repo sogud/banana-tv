@@ -23,6 +23,14 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone" />
+    <LinearLayout android:id="@+id/largeClockGroup" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_gravity="top|start" android:layout_marginTop="76dp" android:layout_marginStart="72dp" android:layout_marginEnd="72dp"
+        android:orientation="vertical" android:visibility="gone" android:importantForAccessibility="no">
+        <TextClock android:id="@+id/largeClock" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:format12Hour="HH:mm" android:format24Hour="HH:mm" android:textSize="68sp" android:fontFamily="sans-serif-light" android:textColor="#F8FAFC" />
+        <TextView android:id="@+id/largeDate" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textSize="18sp" android:textColor="#F8FAFC" />
+    </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -37,31 +45,26 @@
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
                 android:layout_alignParentEnd="true"
-                android:gravity="center_vertical" android:orientation="horizontal" android:background="@drawable/header_glass" android:paddingStart="6dp" android:paddingEnd="6dp">
+                android:gravity="center_vertical" android:orientation="horizontal">
                 <TextView
                     android:id="@+id/btnWeather" style="@style/TopButton"
-                    android:layout_width="wrap_content" android:minWidth="72dp"
+                    android:layout_width="wrap_content" android:minWidth="56dp"
                     android:text="@string/weather_title" android:drawablePadding="6dp"
                     android:contentDescription="@string/weather_title"
                     android:nextFocusDown="@+id/grid" />
-                <TextView
-                    android:id="@+id/btnInputs" style="@style/TopButton"
-                    android:layout_width="32dp" android:text="" android:drawableStart="@drawable/ic_input" android:contentDescription="@string/inputs"
-                    android:nextFocusDown="@+id/grid" />
-                <TextView
-                    android:id="@+id/btnWifi" style="@style/TopButton"
-                    android:layout_width="32dp" android:text="" android:drawableStart="@drawable/ic_wifi" android:contentDescription="@string/wifi"
-                    android:nextFocusDown="@+id/grid" />
                 <TextClock
+                    android:id="@+id/headerClock"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:paddingStart="8dp"
-                    android:paddingEnd="10dp"
-                    android:gravity="center" android:format12Hour="HH:mm" android:format24Hour="HH:mm" android:textSize="14sp" android:textColor="#F2FFFFFF" android:fontFamily="sans-serif" />
+                    android:paddingEnd="18dp"
+                    android:gravity="center" android:format12Hour="HH:mm" android:format24Hour="HH:mm" android:textSize="16sp" android:textColor="#F2FFFFFF" android:fontFamily="sans-serif-medium" />
                 <TextView
-                    android:id="@+id/btnSettings" style="@style/TopButton"
-                    android:layout_width="32dp"
-                    android:text="" android:drawableStart="@drawable/ic_settings" android:contentDescription="@string/settings" android:nextFocusDown="@+id/grid" />
+                    android:id="@+id/btnControls" style="@style/TopButton"
+                    android:layout_width="36dp" android:layout_height="36dp"
+                    android:paddingStart="9dp" android:paddingEnd="9dp"
+                    android:background="@drawable/control_bg"
+                    android:text="" android:drawableStart="@drawable/ic_controls" android:contentDescription="@string/control_center" android:nextFocusDown="@+id/grid" />
             </LinearLayout>
         </RelativeLayout>
         <FrameLayout

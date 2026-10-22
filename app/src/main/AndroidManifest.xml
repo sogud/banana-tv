@@ -8,10 +8,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <!-- Optional, explicitly granted with ADB on the owner's television. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <queries>
         <intent>
@@ -33,6 +35,13 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="content" android:mimeType="vnd.android.cursor.item/channel" />
         </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="content" android:mimeType="vnd.android.cursor.dir/channel" />
+        </intent>
+        <intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.APPSTORE_LAUNCHER" /></intent>
+        <package android:name="com.xiaomi.mitv.mediaexplorer" />
+        <package android:name="com.xiaomi.smarthome.tv" />
         <package android:name="com.xiaomi.mitv.settings" />
         <package android:name="com.mitv.tvhome" />
         <package android:name="com.xiaomi.mitv.tvplayer" />
@@ -45,7 +54,8 @@
         android:banner="@drawable/banner"
         android:theme="@style/Theme.TvHome"
         android:allowBackup="false"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:networkSecurityConfig="@xml/stream_security">
 
         <service
             android:name=".HomeRedirectService"
@@ -54,6 +64,10 @@
             android:exported="true">
             <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/home_accessibility" />
+        </service>
+        <service android:name=".RevivalListener" android:exported="true"
+            android:label="@string/revival_title" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
         </service>
         <service android:name=".HomeRecoveryService" android:exported="false"
             android:foregroundServiceType="specialUse">

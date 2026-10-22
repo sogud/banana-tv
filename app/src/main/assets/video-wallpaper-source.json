@@ -7,9 +7,11 @@
   "rights_source": "https://studio.blender.org/projects/spring/pages/about/",
   "media_source_page": "https://commons.wikimedia.org/wiki/File:Spring_-_Blender_Open_Movie.webm",
   "download_source": "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a5/Spring_-_Blender_Open_Movie.webm/Spring_-_Blender_Open_Movie.webm.1080p.vp9.webm",
-  "changes": "Excerpt 00:22.6 to 00:29.0; removed audio; scaled to 1280x536; H.264 Main 30 fps; concatenated forward and reverse for a 12.8-second loop. Poster extracted from the excerpt.",
+  "changes": "Final source range 00:24.2 to 00:29.0; dark title fade removed from the earlier excerpt; no audio; 1280x536 H.264 Main at 30 fps; concatenated forward/reverse for a 9.6-second loop. Poster extracted from its first visible landscape frame. Gallery thumbnail center-cropped to 16:9 and resized to 320x180 WebP.",
   "video_file": "res/raw/mountain_loop.mp4",
-  "video_sha256": "9616fd89e52588ae05cfa1a462eab7b5c2926df4e1565479d859819c5f7a4aee",
+  "video_sha256": "0e1c1ff63680cfa97058bbad593e815216f1c5ea7c2d61eff2fafb1b41fcc98a",
   "poster_file": "res/drawable-nodpi/mountain_poster.jpg",
-  "poster_sha256": "292bb4a2c73c27f941768f067e613e30326f1f2360ae8d5146f9b457e0edd0ff"
+  "poster_sha256": "ccc6636234fa896eaf840915c4e73f39758a8948beab8d01b155dee182f44972",
+  "thumbnail_file": "res/drawable-nodpi/preview_mountain.webp",
+  "thumbnail_sha256": "a0ea29e8e0119b2305e34129ccf204d14f5e290492348bdddc5bc546c404c164"
 }

@@ -133,6 +133,45 @@ Creative Commons Attribution 4.0 International
 https://creativecommons.org/licenses/by/4.0/
 https://studio.blender.org/projects/spring/pages/about/
 
-Changes: excerpt 00:22.6-00:29.0, no audio, downscaled and re-encoded,
-concatenated forward/reverse as a 12.8-second loop. Poster and four JPEG stills extracted.
+Changes: excerpt 00:24.2-00:29.0, no audio, downscaled and re-encoded,
+concatenated forward/reverse as a 9.6-second loop. Poster and four JPEG stills extracted.
 See video-wallpaper-source.json for exact provenance and file hashes.
+
+---
+
+Landscape wallpaper pack
+Seven CC0 1.0 photographs and one public-domain photograph.
+See wallpaper-sources.json for individual authors, sources, changes and hashes.
+https://creativecommons.org/publicdomain/zero/1.0/
+
+
+Aerial — https://github.com/pengchujin/aerial-tv
+MIT License
+
+Copyright (c) 2026 pengchujin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+AndroidX Media3 1.8.1 — https://github.com/androidx/media
+ZXing Core 3.5.3 — https://github.com/zxing/zxing
+Apache License 2.0: third-party/APACHE-2.0.txt; bundled notices in third-party/.
+
+NanoHTTPD 2.3.1 — https://github.com/NanoHttpd/nanohttpd
+BSD 3-Clause: third-party/nanohttpd-LICENSE.txt.
