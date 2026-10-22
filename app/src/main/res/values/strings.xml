@@ -17,9 +17,10 @@
     <string name="project_unpublished">尚未发布</string>
     <string name="project_url" translatable="false">https://github.com/sogud/banana-tv</string>
     <string-array name="settings_actions">
-        <item>电视设置</item><item>常用应用</item><item>外观</item><item>壁纸</item>
-        <item>天气</item><item>遥控器</item><item>应用管理</item><item>屏幕保护程序</item>
-        <item>主屏幕</item><item>系统偏好</item><item>关于</item><item>切换到小米桌面…</item>
+        <item>外观</item><item>壁纸</item><item>屏幕保护程序</item><item>常用应用</item>
+        <item>天气</item><item>遥控器</item><item>应用管理</item><item>主屏幕</item>
+        <item>系统偏好</item><item>电视设置</item><item>关于</item><item>切换到小米桌面…</item>
+        <item>输入源管理</item><item>设置访问密码</item><item>启动与保活</item><item>手机配置</item><item>检查更新</item>
     </string-array>
     <string name="home_service_name">Banana TV 主屏幕</string>
     <string name="home_service_description">处理已设置的遥控器快捷键与可选 Home 兼容功能。不读取屏幕内容、不保存按键历史。可在 Banana TV 设置中恢复。</string>
@@ -76,6 +77,9 @@
     <string name="inputs">输入源</string>
     <string name="wifi">无线网络</string>
     <string name="settings">设置</string>
+    <string name="control_center">控制中心</string>
+    <string name="network_title">网络</string>
+    <string name="start_screensaver">启动屏保</string>
     <string name="choose_input">选择输入源</string>
     <string name="connected">已连接</string>
     <string name="standby">待机</string>
@@ -128,4 +132,6 @@
     <string name="remote_key">按键 %1$s</string>
     <string name="remote_limit">部分厂商专用键不会发送到 Android 应用；未识别时无法通过此方式修改。</string>
     <string name="remote_missing_app">快捷应用不可用，已保留按键原功能</string>
+    <string name="wallpaper_selected">已选中</string>
+    <string name="wallpaper_checked_name">%1$s  ✓</string>
 </resources>

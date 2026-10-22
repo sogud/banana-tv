@@ -19,7 +19,7 @@ public final class BananaDreamService extends DreamService {
     @Override
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
-        setInteractive(false);
+        setInteractive(true);
         setFullscreen(true);
         setScreenBright(true);
         scene = new ScreensaverScene(this);
@@ -40,5 +40,17 @@ public final class BananaDreamService extends DreamService {
         if (active.get() == this) active.clear();
         MainActivity.systemDreamChanged();
         super.onDreamingStopped();
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        int code = event.getKeyCode();
+        if (scene != null && scene.handleKey(code, event)) return true;
+        if (code == android.view.KeyEvent.KEYCODE_VOLUME_UP || code == android.view.KeyEvent.KEYCODE_VOLUME_DOWN
+                || code == android.view.KeyEvent.KEYCODE_VOLUME_MUTE || code == android.view.KeyEvent.KEYCODE_POWER) {
+            return super.dispatchKeyEvent(event);
+        }
+        if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) finish();
+        return true;
     }
 }

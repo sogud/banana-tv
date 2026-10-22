@@ -11,6 +11,14 @@
         <item>@drawable/mountain_poster</item>
         <item>@drawable/mountain_poster</item>
         <item>@drawable/mountain_poster</item>
+        <item>@drawable/landscape_yosemite</item>
+        <item>@drawable/landscape_forest</item>
+        <item>@drawable/landscape_coast</item>
+        <item>@drawable/landscape_aurora</item>
+        <item>@drawable/landscape_fuji</item>
+        <item>@drawable/landscape_bridge</item>
+        <item>@drawable/landscape_lake</item>
+        <item>@drawable/landscape_dunes</item>
     </array>
     <string-array name="wallpaper_names">
         <item>春日 · 山谷</item>
@@ -23,9 +31,53 @@
         <item>玫瑰暮色</item>
         <item>暖砂</item>
         <item>夜紫</item>
+        <item>优胜美地</item>
+        <item>雾林</item>
+        <item>暮色海岸</item>
+        <item>罗弗敦极光</item>
+        <item>富士暮色</item>
+        <item>金门晚霞</item>
+        <item>雪山镜湖</item>
+        <item>沙丘</item>
     </string-array>
     <integer-array name="wallpaper_modes">
-        <item>0</item><item>0</item><item>0</item><item>0</item><item>1</item>
-        <item>2</item><item>3</item><item>4</item><item>5</item><item>6</item>
+        <item>0</item>
+        <item>0</item>
+        <item>0</item>
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+        <item>0</item>
+        <item>0</item>
+        <item>0</item>
+        <item>0</item>
+        <item>0</item>
+        <item>0</item>
+        <item>0</item>
+        <item>0</item>
     </integer-array>
+    <array name="wallpaper_thumbnails">
+        <item>@drawable/preview_spring_1</item>
+        <item>@drawable/preview_spring_2</item>
+        <item>@drawable/preview_spring_3</item>
+        <item>@drawable/preview_spring_4</item>
+        <item>@drawable/preview_mountain</item>
+        <item>@drawable/preview_mountain</item>
+        <item>@drawable/preview_mountain</item>
+        <item>@drawable/preview_mountain</item>
+        <item>@drawable/preview_mountain</item>
+        <item>@drawable/preview_mountain</item>
+        <item>@drawable/preview_yosemite</item>
+        <item>@drawable/preview_forest</item>
+        <item>@drawable/preview_coast</item>
+        <item>@drawable/preview_aurora</item>
+        <item>@drawable/preview_fuji</item>
+        <item>@drawable/preview_bridge</item>
+        <item>@drawable/preview_lake</item>
+        <item>@drawable/preview_dunes</item>
+    </array>
 </resources>

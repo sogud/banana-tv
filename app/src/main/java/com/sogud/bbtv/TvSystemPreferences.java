@@ -19,6 +19,30 @@ final class TvSystemPreferences {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    static boolean supportsBrightness(Context context) {
+        String maker = Build.MANUFACTURER.toLowerCase(java.util.Locale.ROOT);
+        if (maker.contains("xiaomi") || maker.contains("redmi") || maker.contains("sony") || maker.contains("tcl")) return false;
+        int value = brightness(context);
+        return Settings.System.canWrite(context) && value >= 0 && value <= 255
+                && Settings.System.getInt(context.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS_MODE,
+                Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL) == Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL;
+    }
+
+    static int brightness(Context context) {
+        return Settings.System.getInt(context.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS, -1);
+    }
+
+    static boolean setBrightness(Context context, int value) {
+        if (!supportsBrightness(context) || value < 1 || value > 255) return false;
+        if (!HomeOptions.prefs(context).contains("brightness_before")) {
+            HomeOptions.prefs(context).edit().putInt("brightness_before", brightness(context)).apply();
+        }
+        try {
+            return Settings.System.putInt(context.getContentResolver(), Settings.System.SCREEN_BRIGHTNESS, value)
+                    && brightness(context) == value;
+        } catch (SecurityException | IllegalArgumentException error) { return false; }
+    }
+
     static boolean supportsBootAdPolicy(Context context) {
         // This reader was verified in this TV Home build; do not guess for other firmware.
         if (Build.VERSION.SDK_INT != 28 || !"mulan".equals(Build.DEVICE)) return false;

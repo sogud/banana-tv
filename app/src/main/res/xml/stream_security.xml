@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false"><trust-anchors><certificates src="system" /></trust-anchors></base-config>
+    <!-- Apple Root CA: b0b1730ecbc7ff4505142c49f1295e6eda6bcaed7e2c68c5be91b5a11001f024. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">sylvan.apple.com</domain>
+        <trust-anchors><certificates src="@raw/apple_root_ca" /><certificates src="system" /></trust-anchors>
+    </domain-config>
+</network-security-config>

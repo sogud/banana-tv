@@ -29,6 +29,17 @@ Native Android. Open source. Built for the remote.
 
 **v0.1.11 is the first public preview.** It runs on the TV's existing Android firmware. It does not include a film catalog, streaming subscriptions, TVBox sources, or an in-app player. See [current limits](#compatibility-and-limits).
 
+## Source preview: 0.1.12-dev
+
+The current source reimplements [Aerial](https://github.com/pengchujin/aerial-tv)'s launcher features in Java and Android Views: tile ordering, five-column layout, optional names/clock/focus outline, pinned inputs, volume controls, a local settings PIN and temporary QR phone setup for photos and custom icons. Wallpapers add eight offline photographs, eight light-field presets, opt-in Bing daily pictures and app colors. Screen savers add aerial streaming with timed captions, moving photos and a moving clock.
+
+Long-press Back on Home for [full-screen wallpaper viewing](docs/wallpaper-peek.md). Open **设置 → 壁纸 → 上传壁纸** to upload a JPG, PNG or WebP picture from a phone on the same LAN (20 MB maximum). Uploads are saved on the TV and selected automatically.
+
+The source checks Banana TV releases on GitHub at most daily; Bing downloads are opt-in and aerial streams run only when selected. Phone setup stays on the LAN.
+
+These changes are not in the v0.1.11 download. Feature comparison and test limits · [Media licenses](WALLPAPERS.md).
+
+
 ## Install
 
 You need Android 9 / API 28 or newer, a computer on the same private network, and ADB access enabled on the TV.
@@ -57,19 +68,19 @@ Clone the repository, open it in Codex, Claude Code or another coding assistant,
 
 | Area | Current status |
 | --- | --- |
-| Development target | Redmi A55 2025, Android 9, `mulan`, HyperOS `OS3.0.101.0.PSTAATV`, 2 GB RAM. Other TVs need their own checks. |
+| Software requirement | Android 9 / API 28 or newer. Xiaomi system integrations are enabled only for supported firmware profiles; a shared brand or Android version does not establish compatibility. |
 | Home | Native Home routing and wallpaper-player continuity passed focused 0.1.10 checks with Xiaomi Home disabled and preserved. On this firmware, restoring the stock Home requires ADB. |
 | Startup and ads | A supported Xiaomi boot-ad preference is exposed. Cold boot, wake and actual startup-ad removal remain unverified. Ads inside other apps are outside the launcher. |
 | Wallpaper | First-draw and player-continuity probes passed before this packaging release. Hardware video layers can be absent from ADB captures; that is not proof of a black picture. |
 | TV integration | Native input/settings routes and system screen saver startup were checked on the development firmware. HDMI audio/video with a connected source, casting and Mi Home remote control remain unverified. |
 | Performance | The window requests 60 Hz; bundled video is 30 fps. Navigation samples are not a guarantee of steady 60 fps. |
-| Media center | App launching works. In-app film search, playback, watch progress and phone pairing are planned. |
+| Media center | App launching works. Film search, playback and watch progress are planned. The unreleased source includes LAN phone configuration, not a media remote. |
 
 v0.1.11 adds the appearance, weather and remote settings described above. Its APK is build-checked; these new features still need physical-TV acceptance. The earlier 0.1.10 checks establish only the Home/integration baseline. Firmware-specific code stays limited to the tested profiles.
 
 ## Build
 
-Use JDK 17, Android SDK Platform 34 and Build Tools 34.0.0. Set `JAVA_HOME` and `ANDROID_HOME` to your installations and accept the Android SDK terms before installing SDK packages.
+Use JDK 17, Android SDK Platform 35 and Build Tools 34.0.0. Set `JAVA_HOME` and `ANDROID_HOME` to your installations and accept the Android SDK terms before installing SDK packages.
 
 ```sh
 git clone https://github.com/sogud/banana-tv.git
@@ -80,6 +91,8 @@ cd banana-tv
 Output: `app/build/outputs/apk/debug/app-debug.apk`. The package is `com.sogud.bbtv`; keep it and the same certificate when upgrading. The public preview retains the original development certificate for existing installations. Your local debug key will usually differ; do not uninstall an existing version just to bypass a signature mismatch.
 
 Release builds are unsigned unless all four signing variables are set: `BANANA_TV_KEYSTORE` (an external file), `BANANA_TV_STORE_PASSWORD`, `BANANA_TV_KEY_ALIAS`, `BANANA_TV_KEY_PASSWORD`. Keep the key and passwords outside Git. Run `:app:assembleRelease :app:lintRelease` with those variables for a signed build.
+
+For firmware that refuses APKs declaring `CATEGORY_HOME`, `:app:assembleGuard` builds a package without that declaration. It uses the same package/data and signing requirements; enable Home compatibility explicitly. Use the standard build when native Home works. [Guard setup and recovery](docs/install.md#guard-build).
 
 Source pointers and device diagnostics: [AGENTS.md](AGENTS.md). Contribution checks: [CONTRIBUTING.md](CONTRIBUTING.md). Release changes: [CHANGELOG.md](CHANGELOG.md).
 

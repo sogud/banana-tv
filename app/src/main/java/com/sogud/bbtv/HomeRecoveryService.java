@@ -25,6 +25,11 @@ public final class HomeRecoveryService extends Service {
     private final Runnable checkConnection = this::repairConnection;
 
     private void repairHome() {
+        RecoveryOptions.restoreAdb(this);
+        if (!HomeIntegration.needsService(this)) {
+            if (!RecoveryOptions.keepAdb(this)) stopSelf();
+            return;
+        }
         if (!HomeIntegration.restoreService(this)) {
             stopSelf();
             return;
@@ -57,6 +62,7 @@ public final class HomeRecoveryService extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             handler.post(repair);
+            if (HomeOptions.flag(context, "wake_input", false)) InputSources.route(context, HomeOptions.text(context, "boot_source", ""));
         }
     };
 
@@ -83,7 +89,10 @@ public final class HomeRecoveryService extends Service {
                 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES), false, observer);
         getContentResolver().registerContentObserver(Settings.Secure.getUriFor(
                 Settings.Secure.ACCESSIBILITY_ENABLED), false, observer);
-        registerReceiver(screenOn, new IntentFilter(Intent.ACTION_SCREEN_ON));
+        getContentResolver().registerContentObserver(Settings.Global.getUriFor(Settings.Global.ADB_ENABLED), false, observer);
+        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(screenOn,
+                new IntentFilter(Intent.ACTION_SCREEN_ON), Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(screenOn, new IntentFilter(Intent.ACTION_SCREEN_ON));
     }
 
     @Override

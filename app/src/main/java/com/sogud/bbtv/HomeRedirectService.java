@@ -11,6 +11,7 @@ public class HomeRedirectService extends AccessibilityService {
     private static boolean connected;
     private int heldKey = -1;
     private android.content.Intent keyTarget;
+    private android.content.ComponentName fallbackHome;
 
     static boolean isConnected() {
         return connected;
@@ -20,6 +21,13 @@ public class HomeRedirectService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         connected = true;
+        android.content.pm.ResolveInfo home = getPackageManager().resolveActivity(new android.content.Intent(
+                android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME),
+                android.content.pm.PackageManager.MATCH_DEFAULT_ONLY);
+        if (home != null && home.activityInfo != null && !getPackageName().equals(home.activityInfo.packageName)
+                && !"android".equals(home.activityInfo.packageName)) {
+            fallbackHome = new android.content.ComponentName(home.activityInfo.packageName, home.activityInfo.name);
+        }
     }
 
     @Override
@@ -75,12 +83,15 @@ public class HomeRedirectService extends AccessibilityService {
         if (!HomeIntegration.enabled(this)) return;
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence packageName = event.getPackageName();
-        if (packageName == null || !"com.mitv.tvhome".contentEquals(packageName)) return;
+        if (packageName == null) return;
         CharSequence className = event.getClassName();
         if (className == null) return;
         String name = className.toString();
-        if (!name.equals("com.mitv.tvhome.MainActivityUserMode")
-                && !name.equals("com.mitv.tvhome.MainActivity")) return;
+        boolean xiaomi = "com.mitv.tvhome".contentEquals(packageName)
+                && (name.equals("com.mitv.tvhome.MainActivityUserMode") || name.equals("com.mitv.tvhome.MainActivity"));
+        boolean forcedHome = fallbackHome != null && fallbackHome.getPackageName().contentEquals(packageName)
+                && fallbackHome.getClassName().equals(name);
+        if (!xiaomi && !forcedHome) return;
         // A delayed Xiaomi event must not dismiss our own settings or screen saver.
         if (MainActivity.isHomeVisible()) return;
         long now = SystemClock.elapsedRealtime();

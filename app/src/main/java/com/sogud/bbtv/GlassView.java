@@ -34,7 +34,7 @@ public class GlassView extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
-        float radius = 18f * density;
+        float radius = 14f * density;
         canvas.drawRoundRect(bounds, radius, radius, sheen);
         canvas.drawRoundRect(bounds, radius, radius, rim);
     }

@@ -97,9 +97,13 @@ final class HomeIntegration {
 
     static void syncRecovery(Context context) {
         Intent recovery = new Intent(context, HomeRecoveryService.class);
-        if (needsService(context) && canRecover(context)) {
+        if ((needsService(context) || RecoveryOptions.keepAdb(context)) && canRecover(context)) {
             restoreService(context);
-            context.startForegroundService(recovery);
+            try { context.startForegroundService(recovery); }
+            catch (IllegalStateException | SecurityException error) {
+                // Newer Android versions can deny background FGS starts; the bound listener stays usable.
+                Log.w("BananaHome", "Background recovery service start was denied");
+            }
         } else {
             context.stopService(recovery);
         }

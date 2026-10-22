@@ -1,5 +1,6 @@
 package com.sogud.bbtv;
 
+import android.content.res.ColorStateList;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
 import android.graphics.Paint;
@@ -13,12 +14,25 @@ final class WeatherIconDrawable extends Drawable {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Path path = new Path();
     private final int group;
+    private ColorStateList tint;
     WeatherIconDrawable(int code, boolean day) {
         group = WeatherModel.iconGroup(code, day);
         paint.setColor(0xFFF6F7FA);
         paint.setStrokeWidth(1.8f);
         paint.setStrokeCap(Paint.Cap.ROUND);
         paint.setStrokeJoin(Paint.Join.ROUND);
+    }
+    @Override public boolean isStateful() { return tint != null && tint.isStateful(); }
+    @Override public void setTintList(ColorStateList tint) {
+        this.tint = tint;
+        onStateChange(getState());
+    }
+    @Override protected boolean onStateChange(int[] state) {
+        int color = tint == null ? 0xFFF6F7FA : tint.getColorForState(state, tint.getDefaultColor());
+        if (paint.getColor() == color) return false;
+        paint.setColor(color);
+        invalidateSelf();
+        return true;
     }
     @Override public void draw(Canvas canvas) {
         Rect bounds = getBounds();
@@ -57,6 +71,6 @@ final class WeatherIconDrawable extends Drawable {
         canvas.restoreToCount(saved);
     }
     @Override public void setAlpha(int alpha) { paint.setAlpha(alpha); }
-    @Override public void setColorFilter(ColorFilter filter) { paint.setColorFilter(filter); }
+    @Override public void setColorFilter(ColorFilter filter) { paint.setColorFilter(filter); invalidateSelf(); }
     @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
 }
