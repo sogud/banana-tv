@@ -12,68 +12,98 @@ from urllib.parse import urljoin, urlsplit
 
 MAXIMUM_BYTES = 2 * 1024 * 1024
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CATALOG = PROJECT_ROOT / "app/src/main/assets/media-sources.json"
 
 
-def endpoint(value):
+def endpoint(value, allow_http=False):
     if not isinstance(value, str):
         raise ValueError("API and mirror addresses must be HTTPS strings")
     url = urlsplit(value)
-    if url.scheme != "https" or not url.hostname or url.username or url.password or url.fragment:
+    if url.scheme not in (("http", "https") if allow_http else ("https",)) or not url.hostname or url.username or url.password or url.fragment:
         raise ValueError("Use absolute HTTPS addresses without credentials or fragments")
 
 
-def merge_catalogs(paths):
-    sites, flags, skipped = [], [], []
-    keys, endpoints = set(), set()
-    for path in paths:
-        if path.stat().st_size > MAXIMUM_BYTES:
-            raise ValueError("Configuration exceeds 2 MiB")
-        config = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(config, dict):
-            raise ValueError("Expected a JSON object with a sites array; depot formats need separate conversion")
-        entries = config.get("sites")
-        if not isinstance(entries, list) or not entries or len(entries) > 500:
-            raise ValueError("Configuration must have 1–500 sites")
-        for entry in entries:
-            if not isinstance(entry, dict):
-                raise ValueError("Each site must be an object")
-            key = entry.get("key")
-            if not isinstance(key, str) or not key.strip():
+def read_catalog(path):
+    if path.stat().st_size > MAXIMUM_BYTES:
+        raise ValueError("Configuration exceeds 2 MiB")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict):
+        raise ValueError("Expected a JSON object with a sites array")
+    origin = value.get("origin") if "config" in value else None
+    config = value.get("config", value)
+    if not isinstance(config, dict) or not isinstance(config.get("sites"), list) or not 1 <= len(config["sites"]) <= 500:
+        raise ValueError("Configuration must have 1–500 sites")
+    if origin:
+        endpoint(origin)
+        def absolute(item):
+            if isinstance(item, dict):
+                return {key: absolute(child) for key, child in item.items()}
+            if isinstance(item, list):
+                return [absolute(child) for child in item]
+            if isinstance(item, str) and item.startswith(("./", "../")):
+                return urljoin(origin, item)
+            return item
+        config = absolute(config)
+    return config
+
+
+def merge_catalogs(paths, include_executable=False):
+    if not paths:
+        raise ValueError("Provide private source configurations; public builds contain none")
+    configs = [read_catalog(path) for path in paths]
+    # Keep the largest configuration's shared defaults; scope other defaults to their own sites.
+    primary = max(configs, key=lambda config: len(config["sites"]))
+    catalog = {key: copy.deepcopy(primary[key]) for key in ("spider", "jarHost", "flags", "parses") if key in primary}
+    sites, skipped = [], []
+    keys, endpoints = set(), {}
+    for config in configs:
+        for entry in config["sites"]:
+            if not isinstance(entry, dict) or not isinstance(entry.get("key"), str) or not entry["key"].strip():
                 raise ValueError("Each site needs a stable key")
-            kind = entry.get("type", 1)
-            if type(kind) is not int or kind not in (1, 4):
-                skipped.append({"key": key, "reason": "requires a separately tested adapter"})
+            key, kind = entry["key"], entry.get("type", 1)
+            if type(kind) is not int or kind not in ((0, 1, 3, 4) if include_executable else (1, 4)):
+                skipped.append({"key": key, "reason": "requires explicitly enabled executable/XML aggregation"})
                 continue
-            endpoint(entry.get("api"))
+            api = entry.get("api")
+            if not isinstance(api, str) or not api:
+                raise ValueError("Each site needs an API")
+            jar = entry.get("jar", config.get("spider", ""))
+            if kind == 3 and api.startswith("csp_"):
+                if not jar:
+                    raise ValueError("JAR adapter has no declared archive")
+                endpoint(jar.split(";md5;", 1)[0], allow_http=True)
+            else:
+                endpoint(api, allow_http=include_executable)
             mirrors = entry.get("mirrors", [])
-            if not isinstance(mirrors, list) or len(mirrors) > 2:
-                raise ValueError("Each JSON API site supports at most two mirrors")
+            if not isinstance(mirrors, list) or len(mirrors) > 2 or (mirrors and kind not in (0, 1, 4)):
+                raise ValueError("Only HTTP API sites support up to two mirrors")
             for mirror in mirrors:
-                endpoint(mirror)
-            identity = (kind, entry["api"])
+                endpoint(mirror, allow_http=include_executable)
+            site = copy.deepcopy(entry)
+            for field, root_field, empty in (("jar", "spider", ""), ("jarHost", "jarHost", ""),
+                                              ("flags", "flags", []), ("parses", "parses", [])):
+                effective = entry.get(field, config.get(root_field, empty))
+                if effective != catalog.get(root_field, empty):
+                    site[field] = copy.deepcopy(effective)
+            behavior = {field: value for field, value in site.items() if field not in ("key", "name", "mirrors")}
+            identity = json.dumps(behavior, ensure_ascii=False, sort_keys=True)
             if identity in endpoints:
-                skipped.append({"key": key, "reason": "duplicate API"})
+                previous = endpoints[identity]
+                merged = list(previous.get("mirrors", []))
+                for mirror in mirrors:
+                    if mirror != api and mirror not in merged and len(merged) < 2:
+                        merged.append(mirror)
+                if merged:
+                    previous["mirrors"] = merged
+                skipped.append({"key": key, "reason": "duplicate API/adapter"})
                 continue
             if key in keys:
-                raise ValueError("Conflicting site keys; assign stable distinct keys before merging")
-            site = copy.deepcopy(entry)
-            # Executable adapters are distributed separately, never copied into a native API feed.
-            site.pop("jar", None)
+                raise ValueError("Conflicting source keys; assign distinct keys before merging")
             sites.append(site)
             keys.add(key)
-            endpoints.add(identity)
-        values = config.get("flags", [])
-        if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
-            raise ValueError("flags must be an array of strings")
-        for value in values:
-            if value not in flags:
-                flags.append(value)
+            endpoints[identity] = site
     if not sites or len(sites) > 500:
         raise ValueError("The merged catalog must have 1–500 compatible sites")
-    catalog = {"sites": sites}
-    if flags:
-        catalog["flags"] = flags
+    catalog["sites"] = sites
     return catalog, skipped
 
 
@@ -117,13 +147,13 @@ def reviewed_catalog(path, origin, selected):
     return absolute(config), skipped
 
 
-def prepare(paths, output, name, snapshot=None, origin=None, selected=None, dependencies=None):
+def prepare(paths, output, name, snapshot=None, origin=None, selected=None, dependencies=None, include_executable=False):
     if output.exists():
         raise ValueError("Output already exists; use a new revision directory")
     if not re.fullmatch(r"[a-z][a-z0-9-]{0,62}", name):
         raise ValueError("Use a lowercase Worker name, up to 63 characters")
     if snapshot is None:
-        catalog, skipped = merge_catalogs(paths)
+        catalog, skipped = merge_catalogs(paths, include_executable)
     else:
         catalog, skipped = reviewed_catalog(snapshot, origin, selected)
     body = (json.dumps(catalog, ensure_ascii=False, indent=2) + "\n").encode()
@@ -168,20 +198,23 @@ def prepare(paths, output, name, snapshot=None, origin=None, selected=None, depe
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("inputs", nargs="*", type=Path, help="Reviewed local JSON files; defaults to the bundled catalog")
+    parser.add_argument("inputs", nargs="*", type=Path, help="Private local source configurations; no default sources")
     parser.add_argument("--output", type=Path, required=True, help="New revision directory outside the public source tree")
     parser.add_argument("--name", default="banana-tv-sources", help="Stable Cloudflare Worker name")
     parser.add_argument("--reviewed-snapshot", type=Path, help="Preserve a single tested snapshot, including its script dependencies")
     parser.add_argument("--origin", help="Pinned HTTPS origin for relative references in the reviewed snapshot")
     parser.add_argument("--site", action="append", help="Previously tested provider key; repeat to select a reviewed subset")
+    parser.add_argument("--include-executable", action="store_true", help="Preserve declared XML, JAR, JavaScript and Python sources in a private aggregate")
     parser.add_argument("--dependencies", type=Path, help="Reviewed dependency tree to copy under the protected assets path")
     args = parser.parse_args()
     if args.reviewed_snapshot and (args.inputs or not args.origin):
         parser.error("Use --origin and no positional inputs with --reviewed-snapshot")
     if not args.reviewed_snapshot and (args.origin or args.site or args.dependencies):
         parser.error("--origin, --site and --dependencies require --reviewed-snapshot")
+    if not args.reviewed_snapshot and not args.inputs:
+        parser.error("Provide private source configurations; no catalog is bundled")
     try:
-        report = prepare(args.inputs or [DEFAULT_CATALOG], args.output, args.name, args.reviewed_snapshot, args.origin, args.site, args.dependencies)
+        report = prepare(args.inputs, args.output, args.name, args.reviewed_snapshot, args.origin, args.site, args.dependencies, args.include_executable)
     except (ValueError, OSError) as error:
         parser.exit(1, f"Cannot prepare catalog: {error}\n")
     print(json.dumps(report, ensure_ascii=False))

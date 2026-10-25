@@ -39,7 +39,7 @@ Long-press Back on Home for [full-screen wallpaper viewing](docs/wallpaper-peek.
 
 The source supports [in-app updates](docs/updates.md) with configurable HTTPS feeds, APK mirror fallback, hash/signature checks and system-confirmed installation. Automatic checks run at most daily. Domestic hosting is not deployed yet; the default falls back to GitHub. Bing downloads are opt-in and aerial streams run only when selected. Phone setup stays on the LAN.
 
-The unreleased source also adds a native [media center](docs/media-center.md): six bundled JSON sources, API mirror fallback, custom-source import, a unified home and categories, cross-source search and grouped results, source settings, daily configuration refresh and QR phone source entry, details, episode/line selection, Media3 playback and local resume. It integrates FongMi CatVod source. The bundled sources load locally without GitHub or runtime APKs; optional scripted sources need their compatible runtime components. XML feeds, nested folders and ordinary web-player resolution are supported. All 151 entries in a pinned qist snapshot were attempted; 60 distinct entries played across the sweep and targeted rechecks. See per-entry results and limits.
+The unreleased source adds a native [media center](docs/media-center.md): a unified library, cross-source search, configurable API mirrors, QR phone setup, daily configuration refresh, Media3 playback and resume. **Public builds contain no media sources or subscriptions.** Add a configuration you control in **影视 → 设置 → 来源配置**, using TV entry or a phone QR code. Private builds may opt into a local catalog; see [catalog setup](docs/source-catalog.md). Upstream configurations such as [qist/tvbox](https://github.com/qist/tvbox) are user-supplied; compatibility and availability vary. JAR, JavaScript and Python retain the existing runtime implementations. Source configuration and native catalogue downloads use a shared bounded OkHttp transport.
 
 Provider subcategories are available below the shared categories. Catalog results and posters have bounded disk caches; opening the library shows cached results during refresh, and a failed refresh keeps them available.
 
@@ -82,7 +82,7 @@ Physical-TV observations below predate the package rename. The new identity need
 | Wallpaper | First-draw and player-continuity probes passed before this packaging release. Hardware video layers can be absent from ADB captures; that is not proof of a black picture. |
 | TV integration | Native input/settings routes and system screen saver startup were checked on the development firmware. HDMI audio/video with a connected source, casting and Mi Home remote control remain unverified. |
 | Performance | The window requests 60 Hz; bundled video is 30 fps. Navigation samples are not a guarantee of steady 60 fps. |
-| Media center | The published preview launches apps. Unreleased source adds bundled sources, native search/playback and resume; emulator movie playback passed. Physical-TV media acceptance is pending. |
+| Media center | The published preview launches apps. Unreleased source adds user-configured sources, native search/playback and resume; emulator movie playback passed. Physical-TV media acceptance is pending. |
 
 v0.1.11 adds the appearance, weather and remote settings described above. Its APK is build-checked; these new features still need physical-TV acceptance. The earlier 0.1.10 checks establish only the Home/integration baseline. Firmware-specific code stays limited to the tested profiles.
 

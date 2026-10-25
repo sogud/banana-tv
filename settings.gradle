@@ -16,3 +16,4 @@ rootProject.name = "banana-tv"
 include ':app'
 
 include ':media-core'
+include ':source-runtime'

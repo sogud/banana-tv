@@ -2,7 +2,13 @@
 
 Banana TV can use a source configuration that you maintain on a CDN. The configuration lists provider APIs and optional category mappings. Film metadata and video still come from those providers; hosting this JSON does not accelerate their video streams.
 
-The bundled catalog has one source of truth: [media-sources.json](../app/src/main/assets/media-sources.json). You can upload that exact file as a public JSON object. Keep account credentials and private subscriptions out of a public catalog.
+Public builds contain no configured sources. Their input, [public.json](../app/catalog/public.json), must stay empty. Keep source configurations, credentials and subscriptions outside Git. The app maintains the configuration and client compatibility; upstream providers still maintain their own catalogues and video endpoints.
+
+## Public and private builds
+
+A normal build bundles zero sources. For your own build, explicitly pass `-PprivateMediaSources=/path/to/private/sources.json`; the file must stay outside version control. The build copies it into the generated catalog asset, without editing the public input. Never publish a private APK as the public release.
+
+To combine configurations, pass the files in preference order and add `--include-executable` when needed. An input may use `{"origin":"https://config.example/source.json","config":{"sites":[...]}}` so relative JAR/script references resolve against its upstream address. The tool prepares a local revision only; it never deploys it. Supplying a CDN configuration does not mirror or accelerate the upstream video files.
 
 ## Private address and phone setup
 
@@ -18,13 +24,13 @@ For an active custom configuration, automatic checking is enabled by default. Op
 
 ## Prepare and distribute
 
-The simplest deployment is a small Cloudflare Worker serving one static JSON file. No film-index database or home computer is required. The preparation tool reads the bundled catalog by default:
+The simplest deployment is a small Cloudflare Worker serving one static JSON file. No film-index database or home computer is required. The preparation tool requires your own local configuration:
 
 ```sh
-python3 tools/prepare_source_catalog.py --output /path/to/private/catalog-revision
+python3 tools/prepare_source_catalog.py /path/to/private/sources.json --output /path/to/private/catalog-revision
 ```
 
-To combine reviewed local configurations, pass them before `--output`. The tool merges type 1/4 HTTPS JSON APIs, deduplicates identical APIs and reports skipped adapters in `report.json`. Conflicting provider keys are rejected; assign distinct stable keys before merging. Type 0 XML and type 3 executable adapters need separate compatibility tests and are not silently included. `ext`, headers, category mappings and same-provider mirrors are retained. Review input for credentials and redistribution rights before deployment. Structural validation is not a playback test.
+To combine reviewed local configurations, pass them before `--output`. The tool merges type 1/4 HTTPS JSON APIs, deduplicates identical APIs and reports skipped adapters in `report.json`. Conflicting provider keys are rejected; assign distinct stable keys before merging. Add `--include-executable` to retain declared XML, JAR, JavaScript and Python entries. This preserves source-specific JARs, flags and parsers instead of applying another configuration's defaults. Entries with different capabilities remain distinct; only equivalent definitions are deduplicated. Executable compatibility still needs playback tests. `ext`, headers, category mappings and same-provider mirrors are retained. Review input for credentials and redistribution rights before deployment. Structural validation is not a playback test.
 
 The generated directory contains `wrangler.json`, `worker.js`, `report.json` and `public/`. By default, only `public/sources.json` and response-header rules are asset inputs. The Worker requires a random `SOURCE_TOKEN` secret for `/<SOURCE_TOKEN>/sources.json`; the ordinary `/sources.json` path returns 404. Keep the secret outside Git and enter the full private URL yourself on the phone. Anyone holding the full URL can read the catalog, so do not share it publicly.
 

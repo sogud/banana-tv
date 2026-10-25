@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import com.sogud.bananatv.source.SourceHttp;
 import com.fongmi.quickjs.host.Host;
 import com.github.catvod.Proxy;
 import com.github.catvod.Runtime;
@@ -57,6 +58,7 @@ public final class MediaEngine {
     final MediaCache catalogCache;
     private final OkHttpClient http = new OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS).callTimeout(25, TimeUnit.SECONDS).build();
+    private final SourceHttp transport = new SourceHttp(http);
     private final List<Site> sites = new ArrayList<>();
     private final Map<String, Spider> spiders = new ConcurrentHashMap<>();
     private final Map<String, DexClassLoader> jars = new HashMap<>();
@@ -69,6 +71,7 @@ public final class MediaEngine {
     private String configId = "", configRevision = "", recent = "";
     private List<String> flags = new ArrayList<>();
     private JSONArray parsers = new JSONArray();
+
     private static final Host HOST = new Host() {
         @Override public long getCallTimeout() { return 15000; }
     };
@@ -95,20 +98,7 @@ public final class MediaEngine {
         Failure(int message) { this.message = message; }
     }
     /** A page/search owns its HTTP calls; leaving it cancels sockets as well as queued work. */
-    public static final class Cancellation {
-        private final List<okhttp3.Call> calls = new ArrayList<>();
-        private boolean cancelled;
-        synchronized void check() throws java.io.InterruptedIOException {
-            if (cancelled || Thread.currentThread().isInterrupted()) throw new java.io.InterruptedIOException();
-        }
-        synchronized void add(okhttp3.Call call) throws IOException { check(); calls.add(call); }
-        synchronized void remove(okhttp3.Call call) { calls.remove(call); }
-        public synchronized void cancel() {
-            cancelled = true;
-            for (okhttp3.Call call : calls) call.cancel();
-            calls.clear();
-        }
-    }
+    public static final class Cancellation extends SourceHttp.Scope { }
     public String error(Throwable error) {
         if (error instanceof Failure) return context.getString(((Failure) error).message);
         RuntimeModule.MissingException missing = RuntimeModule.MissingException.find(error);
@@ -218,13 +208,13 @@ public final class MediaEngine {
         }
     }
     private void activate(JSONObject json, String origin, boolean builtIn) throws Exception {
-        validate(json);
+        validate(json, BUILTIN_ORIGIN.equals(origin));
         clear();
         apply(json, origin);
         boolean selectedExists = false;
         for (Site site : sites) if (site.key.equals(selected())) selectedExists = true;
         SharedPreferences.Editor editor = preferences.edit().putBoolean("built_in", builtIn);
-        if (!selectedExists) editor.putString("site", sites.get(0).key);
+        if (!selectedExists) editor.putString("site", sites.isEmpty() ? "" : sites.get(0).key);
         editor.apply();
     }
     public void importSource(String url) throws Exception {
@@ -254,10 +244,11 @@ public final class MediaEngine {
         write(new File(directory, "config.json"), envelope.toString().getBytes(StandardCharsets.UTF_8));
         activate(json, origin, false);
     }
-    private void validate(JSONObject json) throws Exception {
+    private void validate(JSONObject json) throws Exception { validate(json, false); }
+    private void validate(JSONObject json, boolean allowEmpty) throws Exception {
         validateJarHost(json.optString("jarHost"));
         JSONArray list = json.optJSONArray("sites");
-        if (list == null || list.length() == 0 || list.length() > 500) throw new Failure(R.string.media_invalid_config);
+        if (list == null || (!allowEmpty && list.length() == 0) || list.length() > 500) throw new Failure(R.string.media_invalid_config);
         java.util.HashSet<String> keys = new java.util.HashSet<>();
         for (int i = 0; i < list.length(); i++) {
             JSONObject site = list.getJSONObject(i);
@@ -280,7 +271,7 @@ public final class MediaEngine {
         if (!profile.isEmpty() && !profile.equals("native") && !profile.equals("catvod-v1")) throw new Failure(R.string.media_invalid_config);
     }
     private void apply(JSONObject json, String origin) throws Exception {
-        validate(json);
+        validate(json, BUILTIN_ORIGIN.equals(origin));
         configId = digest("SHA-256", origin.getBytes(StandardCharsets.UTF_8));
         configRevision = digest("SHA-256", json.toString().getBytes(StandardCharsets.UTF_8));
         JSONArray list = json.getJSONArray("sites");
@@ -288,7 +279,7 @@ public final class MediaEngine {
         JSONArray values = json.optJSONArray("flags");
         if (values != null) for (int i = 0; i < values.length(); i++) flags.add(values.optString(i));
         parsers = json.optJSONArray("parses") == null ? new JSONArray() : json.getJSONArray("parses");
-        if (selected().isEmpty()) select(sites.get(0).key);
+        if (selected().isEmpty() && !sites.isEmpty()) select(sites.get(0).key);
     }
     private static void absolutize(Object object, URI base) throws Exception {
         if (object instanceof JSONObject) {
@@ -544,7 +535,9 @@ public final class MediaEngine {
     }
     public JSONObject resolve(Site site, Movie movie, int lineIndex, int episodeIndex) throws Exception {
         Line line = movie.lines.get(lineIndex); Episode episode = line.episodes.get(episodeIndex);
-        JSONObject result = site.type == 3 ? object(spider(site).playerContent(line.name, episode.id, flags))
+        List<String> sourceFlags = site.flags == null ? flags : site.flags;
+        JSONArray sourceParsers = site.parsers == null ? parsers : site.parsers;
+        JSONObject result = site.type == 3 ? object(spider(site).playerContent(line.name, episode.id, sourceFlags))
                 : site.type == 4 ? object(call(site, Map.of("play", episode.id, "flag", line.name)))
                 : new JSONObject().put("url", episode.id).put("parse", 0);
         String url = streamUrl(result.opt("url"));
@@ -554,16 +547,16 @@ public final class MediaEngine {
         if (headers == null && result.opt("header") instanceof String) headers = object(result.getString("header"));
         if (headers == null) headers = site.headers == null ? new JSONObject() : site.headers;
         String prefix = result.optString("playUrl");
-        boolean needsParser = result.optInt("parse", 0) != 0 || result.optInt("jx", 0) == 1 || flags.contains(line.name);
+        boolean needsParser = result.optInt("parse", 0) != 0 || result.optInt("jx", 0) == 1 || sourceFlags.contains(line.name);
         if (!prefix.isEmpty() || (needsParser && !MediaWebResolver.direct(url))) {
             JSONObject parsed = null;
-            if (prefix.isEmpty() && (result.optInt("jx", 0) == 1 || flags.contains(line.name))) parsed = configuredParser(url);
+            if (prefix.isEmpty() && (result.optInt("jx", 0) == 1 || sourceFlags.contains(line.name))) parsed = configuredParser(url, sourceParsers);
             result = parsed == null ? MediaWebResolver.resolve(context, prefix + url, headers) : parsed;
         } else result.put("url", url).put("parse", 0).put("header", headers);
         inferFormat(result);
         return result;
     }
-    private JSONObject configuredParser(String target) throws Exception {
+    private JSONObject configuredParser(String target, JSONArray parsers) throws Exception {
         long deadline = android.os.SystemClock.elapsedRealtime() + 14000;
         // JSON parsers avoid starting a renderer. Then try two explicitly configured web parsers.
         for (int kind : new int[]{1, 0}) {
@@ -666,13 +659,7 @@ public final class MediaEngine {
         return download(request, maximum, timeout, new Cancellation());
     }
     private byte[] download(Request request, int maximum, long timeout, Cancellation cancellation) throws Exception {
-        okhttp3.Call call = http.newCall(request);
-        call.timeout().timeout(timeout, TimeUnit.MILLISECONDS);
-        cancellation.add(call);
-        try (Response response = call.execute()) {
-            if (!response.isSuccessful() || response.body() == null) throw new IOException("Source HTTP failure");
-            try (InputStream input = response.body().byteStream()) { return read(input, maximum); }
-        } finally { cancellation.remove(call); }
+        return transport.download(request, maximum, timeout, cancellation);
     }
     private static byte[] read(InputStream input, int maximum) throws IOException {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {

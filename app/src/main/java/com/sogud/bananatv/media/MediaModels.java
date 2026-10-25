@@ -16,6 +16,8 @@ public final class MediaModels {
         public final boolean searchable;
         public JSONObject headers;
         public final JSONObject categories;
+        public final List<String> flags;
+        public final JSONArray parsers;
         Site(JSONObject json, String globalJar) { this(json, globalJar, ""); }
         Site(JSONObject json, String globalJar, String globalHost) {
             key = json.optString("key"); name = json.optString("name", key);
@@ -31,6 +33,10 @@ public final class MediaModels {
             jar = json.optString("jar", globalJar); headers = json.optJSONObject("header");
             jarHost = json.optString("jarHost", globalHost);
             categories = json.optJSONObject("categories");
+            JSONArray values = json.optJSONArray("flags");
+            flags = values == null ? null : new ArrayList<>();
+            if (values != null) for (int i = 0; i < values.length(); i++) flags.add(values.optString(i));
+            parsers = json.optJSONArray("parses");
         }
     }
     public static final class Category {
