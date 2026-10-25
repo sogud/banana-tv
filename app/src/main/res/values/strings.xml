@@ -5,6 +5,8 @@
     <string name="settings_hint">按菜单键打开设置</string>
     <string name="panel_hint">按返回键返回</string>
     <string name="wallpaper_title">壁纸</string>
+    <string name="wallpaper_4k">4K</string>
+    <string name="tv_settings">电视设置</string>
     <string name="greeting_format">Banana TV · %1$s</string>
     <string name="launcher_settings">设置</string>
     <string name="choose_slot">常用应用</string>

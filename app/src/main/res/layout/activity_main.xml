@@ -7,7 +7,7 @@
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
         android:contentDescription="@null" />
-    <com.sogud.bbtv.VideoWallpaper
+    <com.sogud.bananatv.VideoWallpaper
         android:id="@+id/videoWallpaper"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -18,7 +18,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@drawable/wallpaper_shade" />
-    <com.sogud.bbtv.AmbientWallpaperView
+    <com.sogud.bananatv.AmbientWallpaperView
         android:id="@+id/ambientWallpaper"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

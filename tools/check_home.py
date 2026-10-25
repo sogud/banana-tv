@@ -12,7 +12,7 @@ def main():
     parser.add_argument("--adb", required=True)
     parser.add_argument("--serial", required=True)
     parser.add_argument("--server-port", default="5037")
-    parser.add_argument("--package", default="com.sogud.bbtv")
+    parser.add_argument("--package", default="com.sogud.bananatv")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--from-component", help="Optional app to leave with Home")
     parser.add_argument("--already-open", action="store_true", help="Use the already visible origin window")

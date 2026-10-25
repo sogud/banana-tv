@@ -30,7 +30,7 @@
             android:visibility="gone"
             android:contentDescription="@null" />
 
-        <com.sogud.bbtv.GlassView
+        <com.sogud.bananatv.GlassView
             android:id="@+id/tileSheen"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

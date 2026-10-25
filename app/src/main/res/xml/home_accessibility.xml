@@ -8,4 +8,4 @@
     android:canRequestFilterKeyEvents="true"
     android:accessibilityFlags="flagRequestFilterKeyEvents"
     android:description="@string/home_service_description"
-    android:settingsActivity="com.sogud.bbtv.MainActivity" />
+    android:settingsActivity="com.sogud.bananatv.MainActivity" />

@@ -6,7 +6,7 @@ Read [README.md](README.md) for current limits and docs/roadmap.md for intended 
 
 - Inspect branch and working-tree status before editing. Preserve unrelated changes.
 - Keep Java + Android Views; keep Chinese UI strings in resources and English code names.
-- Keep `com.sogud.bbtv` for upgrade compatibility. Preserve the signing certificate and local preferences.
+- Use `com.sogud.bananatv` for Java, the application ID and components. This is a fresh installation with no migration from earlier package IDs. Preserve the signing certificate and local preferences for subsequent updates.
 - AmbientWallpaperView owns the procedural backgrounds; AmbientColors is deterministic date/time color logic. WeatherController owns opt-in HTTPS weather, coarse location and cache age; never log location/response bodies. RemoteKeys owns app-only key assignments; RemoteKeyPolicy protects essential/typing keys.
 - Release signing uses the four external environment variables documented in README. With none set, release builds are unsigned; debug builds use the developer's own key. A signature mismatch is not permission to uninstall or clear data.
 - Aerial features: read docs/aerial-parity.md for scope and acceptance. MediaLibrary owns photo/icon storage and daily downloads; AerialPlayer owns HTTPS streaming and its bounded cache. PhoneServer runs only during explicit pairing; keep token URLs out of logs and public captures.

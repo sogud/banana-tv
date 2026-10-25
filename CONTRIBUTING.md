@@ -12,4 +12,4 @@ A device check must say which firmware and behavior it actually covered. Keep or
 
 AI-assisted contributions are welcome. The contributor is responsible for reviewing the code, explaining the behavior, checking licenses and reporting which tests actually ran. Build success alone does not establish physical-TV behavior.
 
-By contributing, you license your code under the project's MIT terms. Third-party media needs its own documented redistribution license.
+Contributions to the integrated project use GPL-3.0, as provided in [LICENSE](LICENSE). Preserve existing copyright notices and third-party license terms, including the original launcher terms in [LICENSE-MIT](LICENSE-MIT). Third-party media needs its own documented redistribution license.

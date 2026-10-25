@@ -1,4 +1,4 @@
-package com.sogud.bbtv;
+package com.sogud.bananatv;
 
 /** Plain Java checks: no emulator, account, Android stubs or test dependency. */
 public final class WallpaperPaletteTest {

@@ -14,9 +14,9 @@ def main():
     temporary.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=temporary) as classes:
         subprocess.run([javac, "-d", classes,
-                        str(project / "app/src/main/java/com/sogud/bbtv/WallpaperPalette.java"),
+                        str(project / "app/src/main/java/com/sogud/bananatv/WallpaperPalette.java"),
                         str(project / "tools/WallpaperPaletteTest.java")], check=True)
-        subprocess.run([java, "-cp", classes, "com.sogud.bbtv.WallpaperPaletteTest"], check=True)
+        subprocess.run([java, "-cp", classes, "com.sogud.bananatv.WallpaperPaletteTest"], check=True)
 
 
 if __name__ == "__main__":

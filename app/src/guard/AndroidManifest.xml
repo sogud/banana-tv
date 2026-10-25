@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
     <application>
         <!-- Some firmware refuses APKs that declare CATEGORY_HOME. Keep the existing component. -->
-        <activity android:name="com.sogud.bbtv.MainActivity" tools:node="replace"
+        <activity android:name="com.sogud.bananatv.MainActivity" tools:node="replace"
             android:exported="true" android:launchMode="singleTask" android:stateNotNeeded="true"
             android:excludeFromRecents="true" android:clearTaskOnLaunch="true"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|uiMode"

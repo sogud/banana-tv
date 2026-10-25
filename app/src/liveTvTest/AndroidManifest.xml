@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <instrumentation android:name="com.sogud.bananatv.media.LiveTvPlaybackProbe"
+        android:targetPackage="com.sogud.bananatv"
+        android:targetProcesses="com.sogud.bananatv:media" />
+</manifest>

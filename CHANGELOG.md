@@ -2,6 +2,15 @@
 
 ## 0.1.12-dev — source preview
 
+- Add local media-source sampling and quality ranking, with a settings switch for preferred-source selection.
+- Prompt before switching a failed or stalled playback source; preserve progress and require matching film/episode metadata.
+- Retain playback position when changing to a matching episode on another line.
+
+- Remove the legacy external FongMi shortcut from media settings.
+- Add direct remote pause/resume and ten-second seeking, an in-player episode chooser and Back-to-hide controls.
+- Open the local library before checking configuration updates; stage valid downloads for the next entry without replacing active sources.
+
+- Change the Java namespace, application ID and components to `com.sogud.bananatv`. Install as a new app; earlier package data, permissions and Home/screen saver selections are not migrated.
 - Add persistent tile ordering, five-column layout, optional app names/large clock, custom icons and pinned inputs.
 - Add aerial, photo and moving-clock screen savers, daily pictures and app-colored backgrounds.
 - Add temporary QR phone configuration with local wallpaper upload, photo removal and icon/weather controls.

@@ -2,7 +2,7 @@
 
 ## Code origin
 
-Banana TV is derived from [Gathin23/cleanyourtv](https://github.com/Gathin23/cleanyourtv), previously named `tv-vibehack`, at commit [`19f3c224fe68843cb2ff0df3157b81622bbe1266`](https://github.com/Gathin23/cleanyourtv/tree/19f3c224fe68843cb2ff0df3157b81622bbe1266). Its MIT terms and Gathin copyright are retained in [LICENSE](LICENSE) and the APK's [notices](app/src/main/assets/OPEN_SOURCE_LICENSES.txt).
+Banana TV is derived from [Gathin23/cleanyourtv](https://github.com/Gathin23/cleanyourtv), previously named `tv-vibehack`, at commit [`19f3c224fe68843cb2ff0df3157b81622bbe1266`](https://github.com/Gathin23/cleanyourtv/tree/19f3c224fe68843cb2ff0df3157b81622bbe1266). Its MIT terms and Gathin copyright are retained in [LICENSE-MIT](LICENSE-MIT) and the APK's [notices](app/src/main/assets/OPEN_SOURCE_LICENSES.txt).
 
 Banana TV adds Chinese settings, an editable persistent dock, static/video wallpaper handling, wallpaper color extraction, Home continuity/recovery, an Android DreamService and adapters for a verified Xiaomi firmware. It does not incorporate every feature or device list now present upstream.
 
@@ -18,8 +18,12 @@ Banana TV adds Chinese settings, an editable persistent dock, static/video wallp
 - Banana icon and banner: original project artwork. The icon was created with image generation for Banana TV; no Apple image is bundled.
 - Installed app icons: read from apps on the TV at runtime, not bundled in this repository.
 
-The public package excludes the earlier private illustration collection and any personal video installed separately on a TV. They are not licensed by this project's MIT terms.
+The public package excludes the earlier private illustration collection and any personal video installed separately on a TV. Third-party media rights are separate from the project's GPL-3.0 code license.
 
 ## Aerial
 
 [Aerial](https://github.com/pengchujin/aerial-tv), commit `9e353aa9aec9277521bade4894c7efe2d261e953`, copyright 2026 pengchujin (MIT). Banana TV reimplements its launcher features in Java and Android Views and adapts its gradient palettes, aerial catalogue and bounded streaming-cache design. The films are streamed from Apple; they are not included in the APK and are not covered by the code license.
+
+## FongMi media core
+
+[FongMi/TV](https://github.com/FongMi/TV), commit `7efe49031334048b043e698b4d9e195764fb1f20`, GPL-3.0. The unreleased native media center vendors its CatVod core in `media-core/`; original hashes, exclusions and modifications are documented there. The original launcher MIT notices remain in `LICENSE-MIT`. The combined source uses GPL-3.0; the published v0.1.11 launcher retains its original license. Optional upstream runtime APKs are not bundled.

@@ -1,6 +1,6 @@
 # Wallpapers and video
 
-The current source includes 18 wallpaper choices: eight landscape photographs, five original procedural styles, four still frames and one muted video loop from *Spring* (2019). Choose them from the thumbnail gallery in **设置 → 壁纸**. Home and the screen saver use the same selection. All media works offline.
+The current source includes 20 wallpaper choices: eight landscape photographs, two painted landscapes, five original procedural styles, four still frames and one muted video loop from *Spring* (2019). Choose them from the thumbnail gallery in **设置 → 壁纸**. Home and the screen saver use the same selection. All media works offline.
 
 The photograph pack, thumbnail gallery, matching static screen saver and removal of the video's dark title fade are unreleased changes; the published 0.1.11 APK has the original ten options.
 
@@ -8,7 +8,7 @@ The photograph pack, thumbnail gallery, matching static screen saver and removal
 
 ![Eight bundled landscape photographs; contact sheet, not a TV screenshot](docs/images/wallpapers-preview.webp)
 
-The eight photographs are center-cropped to 16:9, resized to 1920 × 1080 and encoded as WebP. Their combined size is under 3 MiB. The gallery uses separate 320 × 180 previews instead of loading all full-size textures. Static images do not run a video decoder or a continuous animation loop.
+The photographs are center-cropped to 16:9 and encoded as WebP. Yosemite and Mount Fuji use 3840 × 2160 originals; the other six remain 1920 × 1080. Two David Revoy paintings also use 3840 × 2160 images, without upscaling. The gallery marks these four images **4K** and uses separate 320 × 180 previews. Static images do not run a video decoder or a continuous animation loop. Source resolution does not change a TV firmware's desktop output resolution.
 
 | Wallpaper | Photographer | License |
 | --- | --- | --- |
@@ -22,6 +22,8 @@ The eight photographs are center-cropped to 16:9, resized to 1920 × 1080 and en
 | [沙丘](https://commons.wikimedia.org/wiki/File:Colorado_Great_Sand_Dunes_National_Park.jpg) | Mshuang2 | CC0 |
 
 The source pages document each image's rights. The older Unsplash photographs here were released under CC0; this is not a claim that current Unsplash uploads use CC0. Exact download URLs, modifications and SHA-256 hashes are in [wallpaper-sources.json](wallpaper-sources.json), also bundled in the APK.
+
+The two paintings, [Episode 38: The Healer landscape](https://www.peppercarrot.com/en/viewer/wallpapers-src__2023-04-26_Episode-38-The-Healer-landscape_by-David-Revoy.html) and [Landscape study C](https://www.peppercarrot.com/en/viewer/misc-src__2022-02-18_Landscape-study-C-00h45_by-David-Revoy.html), are by David Revoy, CC BY 4.0. They are center-cropped and downsampled from the author's high-resolution exports. Their credits, original dimensions and hashes are in the same provenance file.
 
 Design reference: [Nathan Clark's launcher study](https://x.com/nathanclark/status/2112329341619294527), especially the landscape composition and quiet controls. No image or code from that post is included.
 
@@ -41,16 +43,16 @@ Exact provenance, modifications and hashes:
 - [Four stills](wallpaper-sources.json), also included in the APK
 - [Bundled attribution and licenses](app/src/main/assets/OPEN_SOURCE_LICENSES.txt)
 
-The previous privately used illustration pack had no verified redistribution permission. Those images are excluded from the public source snapshot, Git history and APK. The application's MIT license does not grant rights to third-party media.
+The previous privately used illustration pack had no verified redistribution permission. Those images are excluded from the public source snapshot and its main-branch history. Do not include them in release APKs. The application's GPL-3.0 code license does not grant rights to third-party media.
 
 ## Personal video
 
-For a video you have permission to use, copy `wallpaper.mp4` and a matching `wallpaper.jpg` into the app-specific `Android/data/com.sogud.bbtv/files/wallpapers/` directory with ADB. There is no in-app importer yet:
+For a video you have permission to use, copy `wallpaper.mp4` and a matching `wallpaper.jpg` into the app-specific `Android/data/com.sogud.bananatv/files/wallpapers/` directory with ADB. There is no in-app importer yet:
 
 ```sh
-adb -s TV_IP:5555 shell mkdir -p /sdcard/Android/data/com.sogud.bbtv/files/wallpapers
-adb -s TV_IP:5555 push YOUR_VIDEO.mp4 /sdcard/Android/data/com.sogud.bbtv/files/wallpapers/wallpaper.mp4
-adb -s TV_IP:5555 push YOUR_POSTER.jpg /sdcard/Android/data/com.sogud.bbtv/files/wallpapers/wallpaper.jpg
+adb -s TV_IP:5555 shell mkdir -p /sdcard/Android/data/com.sogud.bananatv/files/wallpapers
+adb -s TV_IP:5555 push YOUR_VIDEO.mp4 /sdcard/Android/data/com.sogud.bananatv/files/wallpapers/wallpaper.mp4
+adb -s TV_IP:5555 push YOUR_POSTER.jpg /sdcard/Android/data/com.sogud.bananatv/files/wallpapers/wallpaper.jpg
 ```
 
 Select **云海山谷**; it becomes **本地动态壁纸** when a local video exists. Relaunch after replacing files. Removing these two files restores the bundled video. File access through ADB depends on the TV firmware.

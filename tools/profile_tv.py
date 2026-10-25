@@ -37,7 +37,7 @@ def main():
     parser.add_argument("--adb", required=True)
     parser.add_argument("--serial", required=True)
     parser.add_argument("--server-port", default="5037")
-    parser.add_argument("--package", default="com.sogud.bbtv")
+    parser.add_argument("--package", default="com.sogud.bananatv")
     parser.add_argument("--cycles", type=int, default=8)
     parser.add_argument("--scenario", choices=["dock", "browse"], default="dock")
     parser.add_argument("--output", type=Path, required=True)

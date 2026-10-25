@@ -19,6 +19,8 @@
         <item>@drawable/landscape_bridge</item>
         <item>@drawable/landscape_lake</item>
         <item>@drawable/landscape_dunes</item>
+        <item>@drawable/anime_healer</item>
+        <item>@drawable/anime_valley</item>
     </array>
     <string-array name="wallpaper_names">
         <item>春日 · 山谷</item>
@@ -39,6 +41,8 @@
         <item>金门晚霞</item>
         <item>雪山镜湖</item>
         <item>沙丘</item>
+        <item>插画 · 雾中城堡</item>
+        <item>插画 · 青翠山谷</item>
     </string-array>
     <integer-array name="wallpaper_modes">
         <item>0</item>
@@ -51,6 +55,8 @@
         <item>4</item>
         <item>5</item>
         <item>6</item>
+        <item>0</item>
+        <item>0</item>
         <item>0</item>
         <item>0</item>
         <item>0</item>
@@ -79,5 +85,7 @@
         <item>@drawable/preview_bridge</item>
         <item>@drawable/preview_lake</item>
         <item>@drawable/preview_dunes</item>
+        <item>@drawable/preview_anime_healer</item>
+        <item>@drawable/preview_anime_valley</item>
     </array>
 </resources>

@@ -9,12 +9,15 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Optional, explicitly granted with ADB on the owner's television. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <queries>
+        <package android:name="com.fongmi.runtime.quickjs" />
+        <package android:name="com.fongmi.runtime.python" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
@@ -55,6 +58,12 @@
         android:allowBackup="false"
         android:hardwareAccelerated="true"
         android:networkSecurityConfig="@xml/stream_security">
+
+        <provider android:name=".UpdateFileProvider"
+            android:authorities="${applicationId}.updates" android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_paths" />
+        </provider>
 
         <service
             android:name=".HomeRedirectService"
@@ -97,6 +106,9 @@
                 <action android:name="com.duokan.intent.action.show.screensaver" />
             </intent-filter>
         </receiver>
+
+        <activity android:name=".media.MediaActivity" android:process="${mediaProcess}" android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".media.MediaPlayerActivity" android:process="${mediaProcess}" android:exported="false" android:screenOrientation="landscape" />
 
         <activity
             android:name=".MainActivity"

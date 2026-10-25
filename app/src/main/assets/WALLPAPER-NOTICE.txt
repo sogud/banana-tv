@@ -7,10 +7,16 @@ https://studio.blender.org/projects/spring/pages/about/
 The video excerpt is cropped in time, muted, resized, re-encoded and joined
 forward/reverse, with the dark title fade removed. Stills are extracted from the edited excerpt.
 See video-wallpaper-source.json and wallpaper-sources.json for provenance,
-modifications and hashes. These media are not covered by the application MIT license.
+modifications and hashes. These media are not covered by the application GPL-3.0 code license.
 The previous private illustration pack is not included in the public release.
 
 Eight landscape photographs and their previews: CC0 1.0 or public domain.
 See wallpaper-sources.json for each photographer, rights page, download URL,
 16:9 crop, WebP encoding and SHA-256 hashes.
 CC0: https://creativecommons.org/publicdomain/zero/1.0/
+
+Two painted landscapes by David Revoy: "Episode 38 The Healer landscape"
+and "Landscape study C 00h45", Creative Commons Attribution 4.0 International.
+Center-cropped and downsampled to 3840x2160, without upscaling.
+https://creativecommons.org/licenses/by/4.0/
+Source pages, original dimensions and hashes: wallpaper-sources.json.

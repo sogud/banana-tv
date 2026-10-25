@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>影视来源 · Banana TV</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#11151d;color:#f5f7fa}body{max-width:540px;margin:0 auto;padding:36px 24px}h1{font-size:26px}p{color:#b6c1d1;line-height:1.7}label{display:block;margin:28px 0 10px}input,button{box-sizing:border-box;font:inherit;border:1px solid #465166;border-radius:12px;padding:14px;width:100%;background:#252d3b;color:inherit}input:focus-visible,button:focus-visible{outline:3px solid #99b9ff}button{margin-top:20px;background:#dee9ff;color:#142038;cursor:pointer}button:disabled{opacity:.55;cursor:wait}#status{margin-top:24px;line-height:1.7}
+</style>
+<h1>影视来源</h1>
+<p>填写你自己维护的聚合配置地址。地址只保存在电视本机，页面不会把它发送到 Banana TV 的服务器。</p>
+<form id="form"><label for="url">配置地址</label><input id="url" type="url" inputmode="url" placeholder="https://…/sources.json" maxlength="4096" required autocomplete="off" spellcheck="false"><p>只添加你信任的来源。配置可能包含可执行脚本；默认每天检查更新，可在电视的来源配置中关闭。</p><button id="submit">保存到电视</button></form>
+<div id="status" role="status" aria-live="polite"></div>
+<p>手机需与电视连接同一个网络。关闭电视上的二维码窗口或十分钟后，此页面失效。</p>
+<script>
+const base=location.pathname.replace(/\/$/,'');
+const form=document.getElementById('form'),button=document.getElementById('submit'),status=document.getElementById('status');
+let timer;
+async function request(options){
+  const response=await fetch(base+'/api/source',options);
+  if(!response.ok)throw Error(response.status===410?'配对已到期，请在电视上重新扫码。':'连接失败，请检查电视上的二维码窗口是否仍然打开。');
+  return response.json();
+}
+async function poll(){
+  try{
+    const result=await request();
+    if(result.state==='saved'){
+      status.textContent='已验证并保存。电视已载入新的片源配置。';
+      document.getElementById('url').value='';button.disabled=false;return;
+    }
+    if(result.state==='error'){status.textContent='电视未能载入配置，请检查地址或网络。之前的配置已保留。';button.disabled=false;return;}
+    timer=setTimeout(poll,600);
+  }catch(error){status.textContent=error.message;button.disabled=false;}
+}
+form.onsubmit=async event=>{
+  event.preventDefault();clearTimeout(timer);button.disabled=true;status.textContent='电视正在下载并验证配置…';
+  try{await request({method:'POST',body:new URLSearchParams({value:document.getElementById('url').value.trim()})});await poll();}
+  catch(error){status.textContent=error.message;button.disabled=false;}
+};
+</script></html>

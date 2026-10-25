@@ -1,6 +1,6 @@
 # Installation and troubleshooting
 
-This is a public preview. Read the limits in [README](../README.md#compatibility-and-limits) before installing. Focused 0.1.10 Home and first-draw probes provide the integration baseline; 0.1.11 adds appearance, weather, key assignments and distribution changes. New-feature physical-TV acceptance is pending. Cold boot, wake, actual startup-ad removal and the physical picture still need acceptance.
+This guide targets the current `com.sogud.bananatv` source build. It is a new installation with separate data and permissions; earlier package IDs are not migrated. Read the limits in [README](../README.md#compatibility-and-limits) before installing. The 0.1.10–0.1.11 device observations predate this identity change and do not establish new-package Home, boot, wake or physical-TV acceptance.
 
 ## 1. Connect the correct TV
 
@@ -20,16 +20,18 @@ A DHCP reservation on the router is usually enough to keep the address stable; m
 
 ## 2. Build and install
 
-Download the APK from [GitHub Releases](https://github.com/sogud/banana-tv/releases), or build with the requirements in [README](../README.md#build). Compare its SHA-256 with the release's SHA256SUMS. Before updating, inspect the installed version and compare the APK's signing certificate with the existing one.
+Build with the requirements in [README](../README.md#build), or use a release APK explicitly identifying itself as `com.sogud.bananatv`. The legacy v0.1.11 APK is a different application identity. Compare a release APK's SHA-256 with its SHA256SUMS. For subsequent updates under the new ID, inspect the installed version and compare the APK's signing certificate with the existing one.
 
 ```sh
-adb -s TV_IP:5555 shell dumpsys package com.sogud.bbtv
+adb -s TV_IP:5555 shell dumpsys package com.sogud.bananatv
 apksigner verify --print-certs PATH_TO_APK
 adb -s TV_IP:5555 install -r PATH_TO_APK
-adb -s TV_IP:5555 shell am start -n com.sogud.bbtv/.MainActivity
+adb -s TV_IP:5555 shell am start -n com.sogud.bananatv/.MainActivity
 ```
 
 `INSTALL_FAILED_UPDATE_INCOMPATIBLE` usually means a signing mismatch. Find the original key; do not uninstall to bypass the error without the owner's agreement, because that removes preferences and permissions. Never copy a key into the repository.
+
+Development builds also support **控制中心 → 检查更新** for verified APK downloads and Android-confirmed upgrades within the new package. Install this identity separately before using that flow. Domestic distribution feeds are supported but not deployed yet; see [app updates and publishing](updates.md).
 
 ## 3. Optional Home compatibility
 
@@ -38,7 +40,7 @@ Start in trial mode. Check the UI and existing apps before enabling **设置 →
 With the owner's authorization, this additional permission allows the app to restore its own accessibility service if firmware removes it:
 
 ```sh
-adb -s TV_IP:5555 shell pm grant com.sogud.bbtv android.permission.WRITE_SECURE_SETTINGS
+adb -s TV_IP:5555 shell pm grant com.sogud.bananatv android.permission.WRITE_SECURE_SETTINGS
 ```
 
 The permission alone does not enable Home compatibility. Enable the in-app switch as well. The app appends its own service while preserving other enabled services, such as Xiao AI. Do not overwrite `enabled_accessibility_services` with a single component.
@@ -46,14 +48,16 @@ The permission alone does not enable Home compatibility. Enable the in-app switc
 To stop compatibility mode, turn off the in-app switch first. Removing the service from system accessibility settings while recovery remains enabled can cause the app to restore it. If the system screen saver is enabled, turn that off too before revoking the shared optional permission:
 
 ```sh
-adb -s TV_IP:5555 shell pm revoke com.sogud.bbtv android.permission.WRITE_SECURE_SETTINGS
+adb -s TV_IP:5555 shell pm revoke com.sogud.bananatv android.permission.WRITE_SECURE_SETTINGS
 ```
 
 Do not assume a successful `set-home-activity` command changed the actual Home resolver. Test the physical remote and the full transition. Stock Xiaomi Home remains installed; on the development TV it is disabled after the separately approved native switch below.
 
 ### Native Home on the development TV
 
-On the verified Android 9 / `mulan` firmware, `set-home-activity` reports success while Xiaomi Home stays enabled, but the resolver still chooses Xiaomi. Disabling the **whole** `com.mitv.tvhome` package after Banana TV is installed and working allows the native resolver to select `com.sogud.bbtv/.MainActivity`. The package remains installed for restoration. This behavior is specific to the tested HyperOS `OS3.0.101.0.PSTAATV` profile.
+The observations in this section predate the package rename. Commands below use the current identity; inspect and test it on the actual TV before a permanent switch. Existing Home, accessibility and screen saver selections are not transferred to the new installation.
+
+On the verified Android 9 / `mulan` firmware, `set-home-activity` reports success while Xiaomi Home stays enabled, but the resolver still chooses Xiaomi. Disabling the **whole** `com.mitv.tvhome` package after Banana TV is installed and working allows the native resolver to select `com.sogud.bananatv/.MainActivity`. The package remains installed for restoration. This behavior is specific to the tested HyperOS `OS3.0.101.0.PSTAATV` profile.
 
 With 0.1.10, native remote-Home checks returned from another app and closed launcher settings while preserving the same wallpaper player, with Home compatibility switched off. The restore commands below were also tested. Cold boot has not been verified; this result does not establish compatibility for a different firmware.
 
@@ -70,7 +74,7 @@ Only for an approved switch on this verified profile:
 
 ```sh
 adb -s TV_IP:5555 shell pm disable-user --user 0 com.mitv.tvhome
-adb -s TV_IP:5555 shell cmd package set-home-activity --user 0 com.sogud.bbtv/.MainActivity
+adb -s TV_IP:5555 shell cmd package set-home-activity --user 0 com.sogud.bananatv/.MainActivity
 adb -s TV_IP:5555 shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME
 adb -s TV_IP:5555 shell am start -W -a android.intent.action.MAIN -c android.intent.category.HOME
 ```
@@ -87,6 +91,12 @@ adb -s TV_IP:5555 shell am start -W -a android.intent.action.MAIN -c android.int
 ```
 
 Do not uninstall Xiaomi Home or reboot as part of this procedure. If it was disabled through ADB, Banana TV's “小米桌面” item explains that it must first be restored through ADB; it does not pretend an ordinary APK can undo the package change.
+
+### External MIUI TV guides
+
+[tv-fresh](https://github.com/wangrongding/tv-fresh/tree/80aba5d02b2fe1fad5e466d4ec65d4b62eccf368) is an ADB workflow reference, not replacement firmware or a Banana TV dependency. Its fallback-Home workaround targets a different verified environment. On the development HyperOS Android 9 firmware checked on 2026-10-25, native Home already resolves Banana TV and `com.android.tv.settings` is absent even from the package manager's uninstalled-package inventory. Do not apply that package-disable step without checking the actual firmware.
+
+Its [cleanup script](https://github.com/wangrongding/tv-fresh/blob/80aba5d02b2fe1fad5e466d4ec65d4b62eccf368/scripts/mitv-debloat.sh) uses unqualified ADB commands and user-level uninstall operations. Keep the explicit ADB server/serial used in this guide, preserve existing accessibility services, and review each package before changing it. Reinstalling a system package for a user is not a backup of that app's data. A community package list alone does not establish that a package is unnecessary or safe to remove.
 
 ## 4. Verify the actual behavior
 
@@ -149,7 +159,7 @@ The framework-only startup probe targets the Release build and records whether t
 ./gradlew --no-daemon :app:assembleRelease :app:assembleReleaseAndroidTest
 adb -s TV_IP:5555 install -r app/build/outputs/apk/release/app-release.apk
 adb -s TV_IP:5555 install -r app/build/outputs/apk/androidTest/release/app-release-androidTest.apk
-adb -s TV_IP:5555 shell am instrument -w com.sogud.bbtv.test/com.sogud.bbtv.WallpaperStartupProbe
+adb -s TV_IP:5555 shell am instrument -w com.sogud.bananatv.test/com.sogud.bananatv.WallpaperStartupProbe
 ```
 
 Require `first_draw_has_wallpaper=true` and `result=PASS`; the ADB command's process exit code alone is insufficient. Verify compatible signing before installing either APK.
@@ -161,12 +171,29 @@ With the owner's authorization to disable boot ads, `-e global_settings true` in
 Ending instrumentation stops the target process. On this Xiaomi firmware that can leave an accessibility component enabled with a dead Binder connection. Launch Banana TV again and allow its recovery service to reconnect, then test Home from another app. The recovery waits three seconds for a normal bind, cycles only Banana TV's component if needed, and limits reconnect attempts to one per 30 seconds. Other accessibility services remain enabled. No reboot is part of this probe.
 
 ```sh
-adb -s TV_IP:5555 shell am start -n com.sogud.bbtv/.MainActivity
-adb -s TV_IP:5555 shell dumpsys activity services com.sogud.bbtv
-adb -s TV_IP:5555 uninstall com.sogud.bbtv.test
+adb -s TV_IP:5555 shell am start -n com.sogud.bananatv/.MainActivity
+adb -s TV_IP:5555 shell dumpsys activity services com.sogud.bananatv
+adb -s TV_IP:5555 uninstall com.sogud.bananatv.test
 ```
 
 In the service dump, check the actual HomeRedirectService binding; its presence in `enabled_accessibility_services` alone is insufficient. Remove the temporary test package when finished, leaving the launcher installed.
+
+## TCL China firmware
+
+Check the Android build and the actual component state; TCL Google TV instructions do not necessarily apply to China firmware. Community records identify `com.tcl.bootadservice` as the full-screen boot-ad package on several China builds ([Android 11 example](https://github.com/Gathin23/cleanyourtv/blob/main/examples/tcl-q10g-pro/debloat.txt), [Android 14 report](https://github.com/Gathin23/cleanyourtv/blob/main/docs/devices/tcl-mt9655-cn-android14.md)). Those are references, not acceptance results for another TV.
+
+Before changing a TV, record its firmware, ad package's User 0 state and native Home resolver:
+
+```sh
+adb -s TV_IP:5555 shell getprop ro.build.display.id
+adb -s TV_IP:5555 shell dumpsys package com.tcl.bootadservice
+adb -s TV_IP:5555 shell pm list packages -d com.tcl.bootadservice
+adb -s TV_IP:5555 shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME
+```
+
+Recheck after an authorized reboot. If the package was re-enabled, investigate what restored it. If it remains disabled but an ad still appears, identify the visible boot stage and responsible process before changing more components. A successful disable command does not prove ad removal. Keep the stock TCL launcher, settings, voice and input services available; do not apply another TV's full debloat list or broadly delete `/data/local`.
+
+The v0.1.11 APK hides app captions and does not include phone wallpaper uploads. Current source defaults to visible names; **设置 → 外观 → 应用名称** retains hidden and focused-only choices. Explicit saved choices survive an update. A damaged local video poster now falls back to the bundled still; physical video output and startup ads still require TV acceptance.
 
 ## Troubleshooting
 
@@ -181,13 +208,15 @@ In the service dump, check the actual HomeRedirectService binding; its presence 
 | Local video fails | Select the dynamic wallpaper item. Check that `wallpaper.mp4` is readable and decodable; `wallpaper.jpg` supplies its poster. Keep the built-in fallback available. |
 | Home works until reboot | Inspect the new boot session and permissions after the TV is online. ADB itself may need to be enabled again; launcher autostart should not depend on a connected computer. |
 
-Local media files go in the app-specific directory `Android/data/com.sogud.bbtv/files/wallpapers/`. The directory contains `wallpaper.mp4` and `wallpaper.jpg`; no in-app import UI exists yet. Use media you may lawfully use and redistribute. Keep private media and streaming configuration outside the public source tree.
+Local media files go in the app-specific directory `Android/data/com.sogud.bananatv/files/wallpapers/`. The directory contains `wallpaper.mp4` and `wallpaper.jpg`; no in-app import UI exists yet. Use media you may lawfully use and redistribute. Keep private media and streaming configuration outside the public source tree.
 
 ## Appearance and apps
 
-In **设置 → 外观**, adjust Dock size (75%, 85%, 90%, 100%, 110%; default 90%) and icon motion. Android's disabled-animation setting also disables continuous background movement. Tiles keep accessibility names while hiding visual captions.
+**控制中心 → 电视设置** opens the TV's native settings directly. Launcher appearance and wallpapers remain under **设置**.
 
-**设置 → 壁纸** includes five procedural color backgrounds driven by the TV's local date/time, four licensed stills and a local video option. Existing wallpaper slots 0–4 retain their order. The procedural styles also work in the screen saver.
+In **设置 → 外观**, adjust Dock size (75%, 85%, 90%, 100%, 110%; default 90%) and icon motion. Android's disabled-animation setting also disables continuous background movement. Current source shows app names by default; **应用名称** offers hidden, focused-only and always-visible captions. All modes retain accessibility names.
+
+**设置 → 壁纸** includes five procedural color backgrounds driven by the TV's local date/time, four licensed stills, a local video option, eight photographs and two painted landscapes. Four images have native 3840×2160 files and a **4K** label. Existing slots retain their order. Firmware that exposes only a 1080p desktop still renders that desktop at 1080p.
 
 **设置 → 应用管理** can hide and restore tiles, or open native app management. It does not uninstall apps or disable system packages automatically. Confirm exact package names and prepare recovery before a cleanup.
 
@@ -213,6 +242,8 @@ Open **控制中心 → 手机配置** and scan the QR code from a phone on the 
 
 For personal wallpapers, open **设置 → 壁纸 → 上传壁纸**, scan the QR code and choose a JPG, PNG or WebP image on the phone page. An uploaded image is saved locally and selected automatically. Tap another thumbnail to switch, or delete an uploaded picture from that page. This upload flow is in the development source; it is not in the public v0.1.11 APK.
 
+Landscape uploads preserve images up to 3840×2160 without enlarging smaller originals. Personal images remain in private app storage and are not added to the distributed wallpaper pack.
+
 Choose **设置 → 壁纸 → 更新每日图片** to opt into Bing downloads. Online daily pictures and Apple's aerial films are cached/streamed for display and are not redistributed in the APK. Aerial playback uses HTTPS, a 48 MiB opener cache and a 24 MiB target playback buffer. Connection/read/no-frame failures advance through films and then show a local photo. Left/Right switches films; other navigation leaves the screen saver.
 
 **设置 → 设置访问密码** protects settings and hidden apps. It is a local 4–8 digit PIN with a salted hash, a ten-minute unlock and Home relocking; it does not control other applications. If forgotten, a debuggable build can use `run-as` to back up the `home` preferences and remove only `pin_hash` and `pin_salt`. An ordinary ADB shell cannot edit a non-debuggable release's private preferences; without Root, recovery requires clearing app data, which also removes all settings and needs the owner's explicit agreement.
@@ -221,7 +252,7 @@ Choose **设置 → 壁纸 → 更新每日图片** to opt into Bing downloads. 
 
 ## Guard build
 
-Use the normal release first. Only when firmware rejects a package declaring `CATEGORY_HOME`, build `:app:assembleGuard` with the same four signing variables as a release. Without signing variables, the output is `app/build/outputs/apk/guard/app-guard-unsigned.apk`; a signed build produces `app-guard.apk`. Its main activity remains `com.sogud.bbtv/.MainActivity`, but it does not register as native Home. The owner must enable the reversible accessibility-based Home compatibility service. Updating a working native-Home installation to Guard can return Home to the stock launcher, so prepare ADB recovery first.
+Use the normal release first. Only when firmware rejects a package declaring `CATEGORY_HOME`, build `:app:assembleGuard` with the same four signing variables as a release. Without signing variables, the output is `app/build/outputs/apk/guard/app-guard-unsigned.apk`; a signed build produces `app-guard.apk`. Its main activity remains `com.sogud.bananatv/.MainActivity`, but it does not register as native Home. The owner must enable the reversible accessibility-based Home compatibility service. Updating a working native-Home installation to Guard can return Home to the stock launcher, so prepare ADB recovery first.
 
 To return to the standard build, install a standard APK signed by the same key and restore the system's default-Home selection. Keep the stock launcher installed. This variant is not a firmware replacement.
 

@@ -1,3 +1,6 @@
+Banana TV integrated project: GPL-3.0 (third-party/GPL-3.0.txt).
+Original launcher code retains the following MIT notice.
+
 MIT License
 
 Copyright (c) 2026 Gathin
@@ -180,3 +183,12 @@ AndroidX ExifInterface 1.4.2
 Copyright The Android Open Source Project
 License: Apache License 2.0 (third-party/APACHE-2.0.txt)
 https://developer.android.com/jetpack/androidx/releases/exifinterface
+
+
+FongMi TV CatVod core — https://github.com/FongMi/TV
+GPL-3.0: third-party/GPL-3.0.txt
+The combined unreleased Banana TV source is GPL-3.0. Original MIT notices above are retained.
+Source changes and pinned upstream revision: media-core/README.md and media-core/upstream.json.
+
+OkHttp 4.12.0, Gson 2.11.0, Guava 33.3.1-android, Logger 2.2.0, AndroidX Preference/Startup:
+Apache License 2.0, third-party/APACHE-2.0.txt.

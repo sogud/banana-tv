@@ -8,7 +8,7 @@
 Chinese menus, an adjustable dock, adaptive wallpapers and a matching screen saver.<br>
 Native Android. Open source. Built for the remote.
 
-[Download v0.1.11](https://github.com/sogud/banana-tv/releases/tag/v0.1.11) · [Install](#install) · [中文](README.zh-CN.md) · Roadmap
+[Build current source](#build) · [Legacy v0.1.11](https://github.com/sogud/banana-tv/releases/tag/v0.1.11) · [Install](#install) · [中文](README.zh-CN.md) · Roadmap
 
 <img src="docs/images/home-preview.svg" width="880" alt="Layout illustration with a clock, settings controls and four demo app tiles">
 
@@ -31,11 +31,17 @@ Native Android. Open source. Built for the remote.
 
 ## Source preview: 0.1.12-dev
 
+The current source uses `com.sogud.bananatv` for its Java namespace, application ID and components. It installs as a new app; earlier package data, permissions, Home selection and screen saver setup are not migrated.
+
 The current source reimplements [Aerial](https://github.com/pengchujin/aerial-tv)'s launcher features in Java and Android Views: tile ordering, five-column layout, optional names/clock/focus outline, pinned inputs, volume controls, a local settings PIN and temporary QR phone setup for photos and custom icons. Wallpapers add eight offline photographs, eight light-field presets, opt-in Bing daily pictures and app colors. Screen savers add aerial streaming with timed captions, moving photos and a moving clock.
 
 Long-press Back on Home for [full-screen wallpaper viewing](docs/wallpaper-peek.md). Open **设置 → 壁纸 → 上传壁纸** to upload a JPG, PNG or WebP picture from a phone on the same LAN (20 MB maximum). Uploads are saved on the TV and selected automatically.
 
-The source checks Banana TV releases on GitHub at most daily; Bing downloads are opt-in and aerial streams run only when selected. Phone setup stays on the LAN.
+The source supports [in-app updates](docs/updates.md) with configurable HTTPS feeds, APK mirror fallback, hash/signature checks and system-confirmed installation. Automatic checks run at most daily. Domestic hosting is not deployed yet; the default falls back to GitHub. Bing downloads are opt-in and aerial streams run only when selected. Phone setup stays on the LAN.
+
+The unreleased source also adds a native [media center](docs/media-center.md): six bundled JSON sources, API mirror fallback, custom-source import, a unified home and categories, cross-source search and grouped results, source settings, daily configuration refresh and QR phone source entry, details, episode/line selection, Media3 playback and local resume. It integrates FongMi CatVod source. The bundled sources load locally without GitHub or runtime APKs; optional scripted sources need their compatible runtime components. XML feeds, nested folders and ordinary web-player resolution are supported. All 151 entries in a pinned qist snapshot were attempted; 60 distinct entries played across the sweep and targeted rechecks. See per-entry results and limits.
+
+Provider subcategories are available below the shared categories. Catalog results and posters have bounded disk caches; opening the library shows cached results during refresh, and a failed refresh keeps them available.
 
 These changes are not in the v0.1.11 download. Feature comparison and test limits · [Media licenses](WALLPAPERS.md).
 
@@ -44,14 +50,14 @@ These changes are not in the v0.1.11 download. Feature comparison and test limit
 
 You need Android 9 / API 28 or newer, a computer on the same private network, and ADB access enabled on the TV.
 
-1. Download [banana-tv-0.1.11.apk](https://github.com/sogud/banana-tv/releases/download/v0.1.11/banana-tv-0.1.11.apk) and its `SHA256SUMS` from the [release page](https://github.com/sogud/banana-tv/releases/tag/v0.1.11).
+1. [Build the current source](#build). These commands target that build, not the legacy v0.1.11 APK.
 2. Enable the TV's developer options and network debugging. Accept its authorization prompt. These examples use legacy ADB port 5555; use your TV's actual address and debugging method.
 3. Install and open it:
 
 ```sh
 adb connect TV_IP:5555
-adb -s TV_IP:5555 install -r banana-tv-0.1.11.apk
-adb -s TV_IP:5555 shell am start -n com.sogud.bbtv/.MainActivity
+adb -s TV_IP:5555 install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s TV_IP:5555 shell am start -n com.sogud.bananatv/.MainActivity
 ```
 
 Try the launcher before changing Home. Configure the dock, wallpaper and idle time in **设置**. If Android provides a default-home picker, select Banana TV there. Some Xiaomi firmware requires a separate, reversible ADB setup: read [native Home and recovery](docs/install.md#native-home-on-the-development-tv) first. Installing the APK alone does not take over the Home key or remove startup ads.
@@ -66,6 +72,8 @@ Clone the repository, open it in Codex, Claude Code or another coding assistant,
 
 ## Compatibility and limits
 
+Physical-TV observations below predate the package rename. The new identity needs its own Home, permissions and device acceptance.
+
 | Area | Current status |
 | --- | --- |
 | Software requirement | Android 9 / API 28 or newer. Xiaomi system integrations are enabled only for supported firmware profiles; a shared brand or Android version does not establish compatibility. |
@@ -74,7 +82,7 @@ Clone the repository, open it in Codex, Claude Code or another coding assistant,
 | Wallpaper | First-draw and player-continuity probes passed before this packaging release. Hardware video layers can be absent from ADB captures; that is not proof of a black picture. |
 | TV integration | Native input/settings routes and system screen saver startup were checked on the development firmware. HDMI audio/video with a connected source, casting and Mi Home remote control remain unverified. |
 | Performance | The window requests 60 Hz; bundled video is 30 fps. Navigation samples are not a guarantee of steady 60 fps. |
-| Media center | App launching works. Film search, playback and watch progress are planned. The unreleased source includes LAN phone configuration, not a media remote. |
+| Media center | The published preview launches apps. Unreleased source adds bundled sources, native search/playback and resume; emulator movie playback passed. Physical-TV media acceptance is pending. |
 
 v0.1.11 adds the appearance, weather and remote settings described above. Its APK is build-checked; these new features still need physical-TV acceptance. The earlier 0.1.10 checks establish only the Home/integration baseline. Firmware-specific code stays limited to the tested profiles.
 
@@ -88,7 +96,9 @@ cd banana-tv
 ./gradlew --no-daemon :app:assembleDebug
 ```
 
-Output: `app/build/outputs/apk/debug/app-debug.apk`. The package is `com.sogud.bbtv`; keep it and the same certificate when upgrading. The public preview retains the original development certificate for existing installations. Your local debug key will usually differ; do not uninstall an existing version just to bypass a signature mismatch.
+Output: `app/build/outputs/apk/debug/app-debug.apk`. Future updates must keep `com.sogud.bananatv` and the same certificate. A signing mismatch requires the matching key; do not uninstall an existing version just to bypass it.
+
+Source and instrumentation directories use `app/src/{main,androidTest}/java/com/sogud/bananatv/`, matching the Java namespace and component names.
 
 Release builds are unsigned unless all four signing variables are set: `BANANA_TV_KEYSTORE` (an external file), `BANANA_TV_STORE_PASSWORD`, `BANANA_TV_KEY_ALIAS`, `BANANA_TV_KEY_PASSWORD`. Keep the key and passwords outside Git. Run `:app:assembleRelease :app:lintRelease` with those variables for a signed build.
 
@@ -98,6 +108,6 @@ Source pointers and device diagnostics: [AGENTS.md](AGENTS.md). Contribution che
 
 ## Sources and licenses
 
-Code: [MIT](LICENSE), with the original upstream copyright retained. Outfit font: [SIL OFL 1.1](FONT-LICENSE-OFL.txt). *Spring* video and stills: CC BY 4.0, © Blender Foundation; changes and exact sources are in [WALLPAPERS.md](WALLPAPERS.md). The earlier private illustration pack is excluded from this release and its public history. [Full provenance](UPSTREAM.md).
+Integrated source: [GPL-3.0](LICENSE). Original launcher copyrights and MIT terms remain in [LICENSE-MIT](LICENSE-MIT); published v0.1.11 remains MIT. Outfit font: [SIL OFL 1.1](FONT-LICENSE-OFL.txt). *Spring* video and stills: CC BY 4.0, © Blender Foundation; changes and exact sources are in [WALLPAPERS.md](WALLPAPERS.md). The earlier private illustration pack is excluded from this release and its public history. [Full provenance](UPSTREAM.md).
 
 Report bugs through [GitHub Issues](https://github.com/sogud/banana-tv/issues). For sensitive reports, follow [SECURITY.md](SECURITY.md).

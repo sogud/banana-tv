@@ -2,18 +2,26 @@ plugins {
     id 'com.android.application'
 }
 
+def mediaFixture = providers.gradleProperty('mediaFixture').isPresent()
+def updateFixture = providers.gradleProperty('updateFixture').isPresent()
+def liveTvProbe = providers.gradleProperty('liveTvProbe').isPresent()
+if (liveTvProbe && (mediaFixture || updateFixture)) throw new GradleException('Live TV checks cannot use fixture builds.')
+if (mediaFixture && updateFixture) throw new GradleException('Select one fixture build at a time.')
+
 android {
-    namespace 'com.sogud.bbtv'
+    namespace 'com.sogud.bananatv'
     compileSdk 35
-    testBuildType 'release'
+    testBuildType = (mediaFixture || updateFixture) ? 'debug' : 'release'
 
     defaultConfig {
-        applicationId 'com.sogud.bbtv'
+        applicationId 'com.sogud.bananatv'
         minSdk 28
         targetSdk 34
-        versionCode 13
+        manifestPlaceholders.mediaProcess = mediaFixture ? "com.sogud.bananatv.mediatest" : ":media"
+        versionCode updateFixture ? providers.gradleProperty('updateFixtureCode').getOrElse('13').toInteger() : 13
         versionName '0.1.12-dev'
-        testInstrumentationRunner 'com.sogud.bbtv.WallpaperStartupProbe'
+        testInstrumentationRunner liveTvProbe ? 'com.sogud.bananatv.media.LiveTvPlaybackProbe' : updateFixture ? 'com.sogud.bananatv.UpdateIntegrationProbe' :
+                (mediaFixture ? 'com.sogud.bananatv.media.MediaIntegrationProbe' : 'com.sogud.bananatv.WallpaperStartupProbe')
     }
 
     def signingVariables = ['BANANA_TV_KEYSTORE', 'BANANA_TV_STORE_PASSWORD',
@@ -35,6 +43,16 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (updateFixture) {
+                applicationIdSuffix ".updatetest"
+                resValue 'string', 'app_name', 'Banana TV 更新测试'
+            }
+            if (mediaFixture) {
+                applicationIdSuffix ".mediatest"
+                resValue 'string', 'app_name', 'Banana TV 测试'
+            }
+        }
         release {
             if (hasSigning) signingConfig signingConfigs.distribution
             minifyEnabled false
@@ -47,12 +65,19 @@ android {
     }
 
     compileOptions {
+        coreLibraryDesugaringEnabled true
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
 }
 
 dependencies {
+    implementation 'androidx.core:core:1.8.0'
+    implementation project(':media-core')
+    implementation 'androidx.media3:media3-ui:1.8.1'
+    implementation 'androidx.media3:media3-exoplayer-hls:1.8.1'
+    implementation 'androidx.media3:media3-exoplayer-dash:1.8.1'
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
     implementation 'androidx.exifinterface:exifinterface:1.4.2'
     implementation 'androidx.media3:media3-exoplayer:1.8.1'
@@ -61,3 +86,37 @@ dependencies {
     implementation 'org.nanohttpd:nanohttpd:2.3.1'
     implementation 'com.google.zxing:core:3.5.3'
 }
+
+// Keep the legacy Init ABI out of the app class path: only a matched JAR sees this parent.
+def bridgeClasses = layout.buildDirectory.dir('catvodBridge/classes')
+def bridgeAssets = layout.buildDirectory.dir('generated/catvodBridgeAssets')
+def compileCatVodBridge = tasks.register('compileCatVodBridge', JavaCompile) {
+    source = fileTree('src/catvodBridge/java') { include '**/*.java' }
+    classpath = files(android.bootClasspath)
+    destinationDirectory = bridgeClasses
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+}
+def catVodBridgeJar = tasks.register('catVodBridgeJar', Jar) {
+    dependsOn compileCatVodBridge
+    from bridgeClasses
+    archiveFileName = 'bridge-classes.jar'
+    destinationDirectory = layout.buildDirectory.dir('catvodBridge')
+}
+def dexCatVodBridge = tasks.register('dexCatVodBridge', JavaExec) {
+    dependsOn catVodBridgeJar
+    classpath = files(new File(android.sdkDirectory, 'build-tools/34.0.0/lib/d8.jar'))
+    mainClass = 'com.android.tools.r8.D8'
+    inputs.file(catVodBridgeJar.flatMap { it.archiveFile })
+    outputs.file(bridgeAssets.map { it.file('catvod-host.jar') })
+    doFirst {
+        bridgeAssets.get().asFile.mkdirs()
+        args = ['--min-api', '28', '--output', bridgeAssets.get().file('catvod-host.jar').asFile.absolutePath,
+                catVodBridgeJar.get().archiveFile.get().asFile.absolutePath]
+    }
+}
+if (liveTvProbe) {
+    android.sourceSets.androidTest.manifest.srcFile 'src/liveTvTest/AndroidManifest.xml'
+}
+android.sourceSets.main.assets.srcDir(bridgeAssets)
+tasks.named('preBuild').configure { dependsOn dexCatVodBridge }

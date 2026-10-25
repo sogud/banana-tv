@@ -1,4 +1,4 @@
-package com.sogud.bbtv;
+package com.sogud.bananatv;
 
 import android.view.KeyEvent;
 import java.util.Arrays;

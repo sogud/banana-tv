@@ -12,7 +12,7 @@ def main():
     parser.add_argument("--adb", required=True)
     parser.add_argument("--serial", required=True)
     parser.add_argument("--server-port", default="5037")
-    parser.add_argument("--package", default="com.sogud.bbtv")
+    parser.add_argument("--package", default="com.sogud.bananatv")
     parser.add_argument("--input-device", help="Previously verified kernel Home input device")
     parser.add_argument("--linux-key-code", type=int)
     parser.add_argument("--native-home", action="store_true",
