@@ -1,6 +1,6 @@
 # Banana TV agent guide
 
-Read [README.md](README.md) for current limits and docs/roadmap.md for intended features. Before installing, handling Home permissions or diagnosing a device, read [docs/install.md](docs/install.md).
+Read [README.md](README.md) for current features and limits. Before installing, handling Home permissions or diagnosing a device, read [docs/install.md](docs/install.md).
 
 ## Source and changes
 
@@ -9,7 +9,7 @@ Read [README.md](README.md) for current limits and docs/roadmap.md for intended 
 - Use `com.sogud.bananatv` for Java, the application ID and components. This is a fresh installation with no migration from earlier package IDs. Preserve the signing certificate and local preferences for subsequent updates.
 - AmbientWallpaperView owns the procedural backgrounds; AmbientColors is deterministic date/time color logic. WeatherController owns opt-in HTTPS weather, coarse location and cache age; never log location/response bodies. RemoteKeys owns app-only key assignments; RemoteKeyPolicy protects essential/typing keys.
 - Release signing uses the four external environment variables documented in README. With none set, release builds are unsigned; debug builds use the developer's own key. A signature mismatch is not permission to uninstall or clear data.
-- Aerial features: read docs/aerial-parity.md for scope and acceptance. MediaLibrary owns photo/icon storage and daily downloads; AerialPlayer owns HTTPS streaming and its bounded cache. PhoneServer runs only during explicit pairing; keep token URLs out of logs and public captures.
+- Aerial features: read [README.md](README.md) for available features and [WALLPAPERS.md](WALLPAPERS.md) for asset licenses. MediaLibrary owns photo/icon storage and daily downloads; AerialPlayer owns HTTPS streaming and its bounded cache. PhoneServer runs only during explicit pairing; keep token URLs out of logs and public captures.
 - MainActivity owns navigation and settings; AppAdapter owns app discovery; VideoWallpaper owns video surfaces and player lifetime. HomeIntegration and its services own optional Home routing. TvSystemPreferences owns the small system-settings allowlist.
 - SystemScreensaver owns Dream selection and restoration. XiaomiScreensaverReceiver handles only the verified firmware's native idle event; its sender permission and device check are required. See [system screen saver setup](docs/install.md#system-screen-saver) before changing idle behavior.
 - Use the smallest check that covers the changed behavior. A successful build does not prove a correct picture or Home transition on a TV.

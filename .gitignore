@@ -23,3 +23,16 @@ captures/
 !media-core/src/main/java/com/github/**
 !app/src/catvodBridge/java/com/github/
 !app/src/catvodBridge/java/com/github/**
+
+# Private development records; public usage and contribution guides stay tracked.
+/PLAN.md
+/docs/banana-tv-product-plan.md
+/docs/aerial-parity.md
+/docs/design-language.md
+/docs/design.md
+/docs/happy-feat-wallpaper-palette.md
+/docs/open-source-references.md
+/docs/qist-compatibility.md
+/docs/roadmap.md
+/docs/tvbox-source-research.md
+/docs/source-runtime-rewrite.md

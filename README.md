@@ -8,7 +8,7 @@
 Chinese menus, an adjustable dock, adaptive wallpapers and a matching screen saver.<br>
 Native Android. Open source. Built for the remote.
 
-[Build current source](#build) · [Legacy v0.1.11](https://github.com/sogud/banana-tv/releases/tag/v0.1.11) · [Install](#install) · [中文](README.zh-CN.md) · Roadmap
+[Build current source](#build) · [Legacy v0.1.11](https://github.com/sogud/banana-tv/releases/tag/v0.1.11) · [Install](#install) · [中文](README.zh-CN.md)
 
 <img src="docs/images/home-preview.svg" width="880" alt="Layout illustration with a clock, settings controls and four demo app tiles">
 
@@ -43,7 +43,7 @@ The unreleased source adds a native [media center](docs/media-center.md): a unif
 
 Provider subcategories are available below the shared categories. Catalog results and posters have bounded disk caches; opening the library shows cached results during refresh, and a failed refresh keeps them available.
 
-These changes are not in the v0.1.11 download. Feature comparison and test limits · [Media licenses](WALLPAPERS.md).
+These changes are not in the v0.1.11 download. [Media licenses](WALLPAPERS.md).
 
 
 ## Install

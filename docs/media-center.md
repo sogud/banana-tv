@@ -104,7 +104,7 @@ Python's optional `homeVideoContent` may return `None`; that no longer discards 
 
 `tools/check_source_compatibility.py` records home, category, search, detail, resolution and actual playback separately for a private, pinned configuration. Each provider runs in a fresh disposable emulator process. Playback success requires advancing progress after seeking and decoded audio/video buffers; audio-only items are labeled separately. Timeouts and adapter crashes remain explicit failures. Logs, source addresses and captures belong in private output directories, not this repository. An unavailable site or an account that was not configured cannot be counted as working merely because its runtime loaded.
 
-Fixture builds intentionally run media code in the instrumentation process for internal assertions. The normal Release process layout is checked separately below; physical-TV playback still needs device acceptance.
+Fixture builds intentionally run media code in the instrumentation process for internal assertions. Fixture playback does not establish physical-TV compatibility.
 
 ## Opt-in physical-TV playback check
 
