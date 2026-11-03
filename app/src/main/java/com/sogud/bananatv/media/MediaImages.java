@@ -16,7 +16,7 @@ import okhttp3.Response;
 final class MediaImages {
     private static MediaCache disk;
     private static final ThreadPoolExecutor worker = new ThreadPoolExecutor(3, 3, 0, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>());
-    private static final java.util.Set<okhttp3.Call> active = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final java.util.Map<ImageView, okhttp3.Call> active = new java.util.concurrent.ConcurrentHashMap<>();
     private static volatile int generation;
     private static final Handler main = new Handler(Looper.getMainLooper());
     private static final OkHttpClient http = new OkHttpClient.Builder().callTimeout(8, TimeUnit.SECONDS).build();
@@ -26,8 +26,12 @@ final class MediaImages {
     private MediaImages() { }
     static void cancelPending() {
         generation++; worker.getQueue().clear();
-        for (okhttp3.Call call : active) call.cancel();
+        for (okhttp3.Call call : active.values()) call.cancel();
         active.clear();
+    }
+    static void cancel(ImageView view) {
+        okhttp3.Call call = active.remove(view);
+        if (call != null) call.cancel();
     }
     private static synchronized MediaCache disk(ImageView view) {
         if (disk == null) disk = new MediaCache(new java.io.File(view.getContext().getCacheDir(), "media-posters"), 16 * 1024 * 1024);
@@ -36,11 +40,12 @@ final class MediaImages {
     static void load(ImageView view, String url) {
         view.setTag(url); Bitmap ready = cache.get(url);
         if (ready != null) { view.setImageBitmap(ready); return; }
+        view.setImageDrawable(null);
         if (!(url.startsWith("https://") || url.startsWith("http://"))) return;
         MediaCache files = disk(view);
         int ticket = generation;
         worker.execute(() -> {
-            if (ticket != generation) return;
+            if (ticket != generation || !url.equals(view.getTag())) return;
             byte[] saved = files.get(url);
             Bitmap stored = saved == null ? null : BitmapFactory.decodeByteArray(saved, 0, saved.length);
             if (stored != null) {
@@ -51,8 +56,8 @@ final class MediaImages {
             okhttp3.Call call;
             try { call = http.newCall(new Request.Builder().url(url).build()); }
             catch (IllegalArgumentException ignored) { return; }
-            active.add(call);
-            if (ticket != generation) call.cancel();
+            active.put(view, call);
+            if (ticket != generation || !url.equals(view.getTag())) call.cancel();
             try (Response response = call.execute()) {
                 if (!response.isSuccessful() || response.body() == null || response.body().contentLength() > 2 * 1024 * 1024) return;
                 java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
@@ -75,7 +80,7 @@ final class MediaImages {
                 if (bitmap.compress(Bitmap.CompressFormat.JPEG, 85, compressed)) files.put(url, compressed.toByteArray());
                 main.post(() -> { if (ticket == generation && url.equals(view.getTag())) view.setImageBitmap(bitmap); });
             } catch (Exception ignored) { /* The title remains usable when a poster is unavailable. */ }
-            finally { active.remove(call); }
+            finally { active.remove(view, call); }
         });
     }
 }

@@ -33,6 +33,13 @@ final class MediaCache {
             return Files.readAllBytes(file.toPath());
         } catch (Exception ignored) { return null; }
     }
+    synchronized boolean fresh(String key, long maximumAge) {
+        try {
+            File file = file(key);
+            long age = System.currentTimeMillis() - file.lastModified();
+            return file.isFile() && age >= 0 && age < maximumAge;
+        } catch (Exception ignored) { return false; }
+    }
     synchronized void put(String key, byte[] bytes) {
         if (bytes.length > MAX_ENTRY || bytes.length > maximumBytes) return;
         File pending = null;
