@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <service android:name=".PythonWorkerService$Slot0" android:exported="false" android:process=":sourcePython0" />
+        <service android:name=".PythonWorkerService$Slot1" android:exported="false" android:process=":sourcePython1" />
+        <service android:name=".PythonWorkerService$Slot2" android:exported="false" android:process=":sourcePython2" />
+        <service android:name=".PythonWorkerService$Slot3" android:exported="false" android:process=":sourcePython3" />
+    </application>
+</manifest>

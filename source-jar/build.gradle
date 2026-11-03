@@ -1,0 +1,75 @@
+plugins { id 'com.android.library' }
+
+android {
+    namespace 'com.sogud.bananatv.source.jar'
+    compileSdk 35
+    defaultConfig {
+        minSdk 28
+        targetSdk 34
+        testInstrumentationRunner providers.gradleProperty('sourceHostContract').isPresent()
+                ? 'com.sogud.bananatv.source.contract.HostContractProbe' : 'com.sogud.bananatv.source.jar.JarProbe'
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    api project(':source-runtime')
+    api 'com.google.code.gson:gson:2.11.0'
+    androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+    androidTestImplementation 'androidx.media3:media3-ui:1.8.1'
+    androidTestImplementation 'androidx.media3:media3-exoplayer-hls:1.8.1'
+    androidTestImplementation 'androidx.media3:media3-exoplayer-dash:1.8.1'
+}
+
+android.sourceSets.androidTest.java.srcDir '../tools/fixtures/source-host/java'
+
+// Compile an original adapter separately so instrumentation tests the actual DEX boundary.
+def fixtureClasses = layout.buildDirectory.dir('fixture/classes')
+def compileFixture = tasks.register('compileJarFixture', JavaCompile) {
+    dependsOn 'compileDebugJavaWithJavac'
+    source fileTree('src/fixture/java') { include '**/*.java' }
+    classpath = files(android.bootClasspath) + files(tasks.named('compileDebugJavaWithJavac').map { it.destinationDirectory })
+    destinationDirectory = fixtureClasses
+    sourceCompatibility = '17'
+    targetCompatibility = '17'
+    options.encoding = 'UTF-8'
+}
+def fixtureJar = tasks.register('jarFixture', Jar) {
+    dependsOn compileFixture
+    from fixtureClasses
+    archiveFileName = 'fixture-classes.jar'
+    destinationDirectory = layout.buildDirectory.dir('fixture')
+}
+abstract class DexFixtureTask extends JavaExec {
+    @org.gradle.api.tasks.OutputDirectory
+    abstract org.gradle.api.file.DirectoryProperty getAssetDirectory()
+}
+
+def dexFixture = tasks.register('dexJarFixture', DexFixtureTask) {
+    dependsOn fixtureJar
+    inputs.file(fixtureJar.flatMap { it.archiveFile })
+    classpath = files(new File(android.sdkDirectory, "build-tools/${android.buildToolsVersion}/lib/d8.jar"))
+    mainClass = 'com.android.tools.r8.D8'
+    doFirst {
+        assetDirectory.get().asFile.mkdirs()
+        args = ['--min-api', '28', '--lib', android.bootClasspath[0].absolutePath,
+                '--output', new File(assetDirectory.get().asFile, 'source-fixture.jar').absolutePath,
+                fixtureJar.get().archiveFile.get().asFile.absolutePath]
+    }
+}
+androidComponents {
+    onVariants(selector().withBuildType('debug')) { variant ->
+        variant.androidTest.sources.assets.addGeneratedSourceDirectory(dexFixture) { task -> task.assetDirectory }
+    }
+}
+
+// Explicit private compatibility inputs; excluded from default tests and release AAR.
+if (providers.gradleProperty('jarReferenceFixture').isPresent()) {
+    android.sourceSets.androidTest.assets.srcDir '../data/runtime-rewrite/jar-reference-assets'
+    android.sourceSets.androidTest.java.srcDir '../app/src/catvodBridge/java'
+}
+
+android.sourceSets.androidTest.java.srcDir '../tools/fixtures/player/java'

@@ -17,3 +17,7 @@ include ':app'
 
 include ':media-core'
 include ':source-runtime'
+include ':source-script'
+include ':source-jar'
+
+include ':source-python'

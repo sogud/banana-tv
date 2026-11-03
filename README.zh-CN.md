@@ -32,6 +32,10 @@ Java 命名空间、安装 ID 与组件统一为 `com.sogud.bananatv`。按新�
 - 可隐藏应用或进入电视的应用设置；隐藏不等于卸载。
 - 桌面没有广告位、账号系统或分析 SDK。仅天气启用后访问 Open-Meteo，自动城市定位另访问 ipwho.is。
 
+## 独立来源运行库
+
+JAR、JavaScript 和 Python 运行库可以独立构建；默认 App 仍使用 media-core，并未接入这些新模块。模块依赖、构建命令与集成边界见[运行库指南](docs/source-runtime-rewrite.md)。
+
 ## 安装
 
 需要 Android 9 或更新版本、电脑和电视在同一可信网络，并开启电视的网络调试。先[构建当前源码](#构建与来源)，再执行以下命令；这些命令不适用于历史版 v0.1.11 APK：

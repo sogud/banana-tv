@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application>
+        <service android:name="com.sogud.bananatv.source.script.ScriptWorkerService"
+            android:process=":sourceScript" android:exported="false" />
+        <service android:name="com.sogud.bananatv.source.script.ScriptWorkerService$Slot0" android:process=":sourceScript0" android:exported="false" />
+        <service android:name="com.sogud.bananatv.source.script.ScriptWorkerService$Slot1" android:process=":sourceScript1" android:exported="false" />
+        <service android:name="com.sogud.bananatv.source.script.ScriptWorkerService$Slot2" android:process=":sourceScript2" android:exported="false" />
+        <service android:name="com.sogud.bananatv.source.script.ScriptWorkerService$Slot3" android:process=":sourceScript3" android:exported="false" />
+    </application>
+</manifest>

@@ -1,0 +1,53 @@
+plugins { id 'com.android.library' }
+
+android {
+    namespace 'com.sogud.bananatv.source.script'
+    compileSdk 35
+    defaultConfig {
+        minSdk 28
+        targetSdk 34
+        testInstrumentationRunner 'com.sogud.bananatv.source.script.ScriptProbe'
+        buildConfigField 'boolean', 'SOURCE_REFERENCE_FIXTURE', 'false'
+    }
+    buildFeatures { buildConfig = true }
+    buildTypes {
+        debug {
+            buildConfigField 'boolean', 'SOURCE_REFERENCE_FIXTURE', providers.gradleProperty('scriptReferenceFixture').isPresent().toString()
+        }
+    }
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation project(':source-runtime')
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.5'
+    implementation 'wang.harlon.quickjs:wrapper-android:3.2.3'
+    androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+    androidTestImplementation 'androidx.media3:media3-ui:1.8.1'
+    androidTestImplementation 'androidx.media3:media3-exoplayer-hls:1.8.1'
+    androidTestImplementation 'androidx.media3:media3-exoplayer-dash:1.8.1'
+}
+
+def libraryAssets = layout.buildDirectory.dir('generated/sourceScriptAssets')
+def bundleLibraries = tasks.register('bundleSourceLibraries', Exec) {
+    inputs.files(fileTree('javascript') {
+        include '*.js', '*.mjs', '*.json', 'licenses/**'
+        exclude 'node_modules/**'
+    })
+    outputs.dir(libraryAssets)
+    workingDir file('javascript')
+    commandLine 'node', 'build.mjs', libraryAssets.get().asFile.absolutePath
+}
+android.sourceSets.main.assets.srcDir(libraryAssets)
+tasks.named('preBuild').configure { dependsOn bundleLibraries }
+
+// Explicit private reference fixture; never include third-party source adapters in the library assets.
+if (providers.gradleProperty('scriptReferenceFixture').isPresent()) {
+    android.sourceSets.androidTest.assets.srcDir(file('../data/runtime-rewrite/script-reference-assets'))
+}
+
+android.sourceSets.androidTest.java.srcDir '../tools/fixtures/player/java'

@@ -46,6 +46,10 @@ Provider subcategories are available below the shared categories. Catalog result
 These changes are not in the v0.1.11 download. [Media licenses](WALLPAPERS.md).
 
 
+## Standalone source libraries
+
+The JAR, JavaScript and Python libraries can be built independently. They are not the default app backend: the app still uses media-core. See the [module architecture, build commands and integration limits](docs/source-runtime-rewrite.md).
+
 ## Install
 
 You need Android 9 / API 28 or newer, a computer on the same private network, and ADB access enabled on the TV.
