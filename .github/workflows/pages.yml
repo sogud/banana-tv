@@ -1,0 +1,39 @@
+name: Banana TV Pages (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Install locked site dependencies
+        run: npm ci
+        working-directory: site
+      - uses: actions/configure-pages@v5
+        id: pages
+      - name: Build public documentation
+        run: npm run build
+        working-directory: site
+        env:
+          SITE_BASE: ${{ steps.pages.outputs.base_path }}/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+      - name: Deploy manually
+        id: deployment
+        uses: actions/deploy-pages@v4

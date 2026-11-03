@@ -2,11 +2,11 @@
 
 Banana TV can use a source configuration that you maintain on a CDN. The configuration lists provider APIs and optional category mappings. Film metadata and video still come from those providers; hosting this JSON does not accelerate their video streams.
 
-Public builds contain no configured sources. Their input, [public.json](../app/catalog/public.json), must stay empty. Keep source configurations, credentials and subscriptions outside Git. The app maintains the configuration and client compatibility; upstream providers still maintain their own catalogues and video endpoints.
+Public builds must use the empty [subscription example](../banana-tv.config.example.json); the catalog input, [public.json](../app/catalog/public.json), also stays empty. Keep source configurations, credentials and subscriptions outside Git. The app maintains the configuration and client compatibility; upstream providers still maintain their own catalogues and video endpoints.
 
 ## Public and private builds
 
-A normal build bundles zero sources. For your own build, explicitly pass `-PprivateMediaSources=/path/to/private/sources.json`; the file must stay outside version control. The build copies it into the generated catalog asset, without editing the public input. Never publish a private APK as the public release.
+Without a local build configuration, the APK bundles no subscriptions. A root `banana-tv.config.json` supplies private subscription defaults; see [subscription setup](subscriptions.md). To bundle a full offline catalog instead, explicitly pass `-PprivateMediaSources=/path/to/private/sources.json`; the file must stay outside version control. The build copies it into the generated catalog asset, without editing the public input. Never publish a private APK as the public release.
 
 To combine configurations, pass the files in preference order and add `--include-executable` when needed. An input may use `{"origin":"https://config.example/source.json","config":{"sites":[...]}}` so relative JAR/script references resolve against its upstream address. The tool prepares a local revision only; it never deploys it. Supplying a CDN configuration does not mirror or accelerate the upstream video files.
 
@@ -18,7 +18,7 @@ The QR page uses a random session token, accepts local-network peers and same-or
 
 ## Automatic updates
 
-For an active custom configuration, automatic checking is enabled by default. Opening the media browser checks the saved URL when the last successful check is at least 24 hours old. A check has a three-second network timeout and finishes before provider browsing begins; it does not replace source objects during a search or playback. Failed, empty or malformed responses retain the last valid copy. After failure, another media-browser entry can retry after one hour. There is no always-running timer or background service.
+For an active custom configuration, automatic checking is enabled by default. Opening the media browser checks the saved URL in the background when the last successful check is at least 24 hours old. A check has a three-second network timeout. A valid update is staged for the next browser entry; it does not replace source objects during a search or playback. Failed, empty or malformed responses retain the last valid copy. After failure, another media-browser entry can retry after one hour. There is no always-running timer or background service.
 
 **来源配置 → 自动更新** can disable checking. **更新配置** always requests the saved URL immediately. Built-in sources remain offline and change with the APK. Keep the URL and provider keys stable to retain source choices, selected source and playback history.
 

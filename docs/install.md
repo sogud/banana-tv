@@ -43,6 +43,8 @@ With the owner's authorization, this additional permission allows the app to res
 adb -s TV_IP:5555 shell pm grant com.sogud.bananatv android.permission.WRITE_SECURE_SETTINGS
 ```
 
+Playback Home confirmation also uses the accessibility service. A native Home installation still needs that service for a prompt before leaving playback; firmware must forward the key event.
+
 The permission alone does not enable Home compatibility. Enable the in-app switch as well. The app appends its own service while preserving other enabled services, such as Xiao AI. Do not overwrite `enabled_accessibility_services` with a single component.
 
 To stop compatibility mode, turn off the in-app switch first. Removing the service from system accessibility settings while recovery remains enabled can cause the app to restore it. If the system screen saver is enabled, turn that off too before revoking the shared optional permission:
@@ -211,6 +213,8 @@ The v0.1.11 APK hides app captions and does not include phone wallpaper uploads.
 Local media files go in the app-specific directory `Android/data/com.sogud.bananatv/files/wallpapers/`. The directory contains `wallpaper.mp4` and `wallpaper.jpg`; no in-app import UI exists yet. Use media you may lawfully use and redistribute. Keep private media and streaming configuration outside the public source tree.
 
 ## Appearance and apps
+
+Choose **设置 → 外观 → 显示模式** on Home, or **影视 → 设置 → 显示模式**. Day, night and follow-system modes apply to both parts of the app and persist across restarts. Follow-system uses Android’s appearance setting; changing this app setting does not change the TV’s system theme. Video and photo content keep their original colors.
 
 **控制中心 → 电视设置** opens the TV's native settings directly. Launcher appearance and wallpapers remain under **设置**.
 
